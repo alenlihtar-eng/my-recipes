@@ -443,6 +443,11 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 /* Shopping controls stay visible while only the ingredient list scrolls. */
 #recipe-shopping-dialog .shop-sheet{display:flex;flex-direction:column;overflow:hidden!important;max-height:min(85dvh,850px);padding-bottom:max(16px,env(safe-area-inset-bottom))}
 #recipe-shopping-dialog .shop-head{flex:0 0 auto}
+#ingredient-picker-dialog .shop-sheet{display:flex;flex-direction:column;overflow:hidden!important;max-height:min(85dvh,850px);padding-bottom:max(16px,env(safe-area-inset-bottom))}
+#ingredient-picker-dialog .shop-head,#ingredient-picker-dialog .shop-sheet>.muted{flex:0 0 auto}
+#ingredient-picker-dialog .shop-items-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#ingredient-picker-dialog .shop-actions{flex:0 0 auto;margin-top:0;padding-top:12px;border-top:1px solid var(--line);background:var(--paper)}
+
 #recipe-shopping-dialog .shop-sheet>.muted{flex:0 0 auto}
 #recipe-shopping-dialog .shop-items-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 #recipe-shopping-dialog .shop-actions{flex:0 0 auto;margin-top:0;padding-top:12px;border-top:1px solid var(--line);background:var(--paper)}
@@ -532,11 +537,12 @@ function addIngredients(){
  const note=document.createElement('p');note.className='muted';note.textContent='Select only ingredients you do not have at home.';sheet.append(note);
  const selected=new Set();
  const checks=[];
+ const scroll=document.createElement('div');scroll.className='shop-items-scroll';sheet.append(scroll);
  lines.forEach((line,i)=>{
   const row=document.createElement('label');row.className='shop-entry';row.style.cursor='pointer';
   const check=document.createElement('input');check.type='checkbox';check.checked=false;check.onchange=()=>{if(check.checked)selected.add(i);else selected.delete(i);update()};
   const label=document.createElement('span');label.textContent=line;
-  row.append(check,label);sheet.append(row);checks.push(check);
+  row.append(check,label);scroll.append(row);checks.push(check);
  });
  const actions=document.createElement('div');actions.className='shop-actions';
  const selectAll=document.createElement('button');selectAll.type='button';selectAll.textContent='Select all';selectAll.onclick=()=>{checks.forEach((c,i)=>{c.checked=true;selected.add(i)});update()};
