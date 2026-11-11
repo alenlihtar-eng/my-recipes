@@ -265,6 +265,10 @@ function scaledCaption(text,ratio){
  const units=/^(?:kg|mg|ml|dl|cl|g|l|oz|lbs?|cups?|tbsp|tsp|žlic\p{L}*|žličic\p{L}*|kom(?:ada)?|pcs?|pieces?|piece|units?|unit|stk|stuks?|st|ud|uds|unid(?:ades)?|pz|pzas?|pi[eè]ces?|st[üu]ck|шт|шт\.|个|個|枚|本|杯|匙|勺|гр|кг|мл|л)$/iu;
  const blocked=/^(?:min(?:s|utes?|uta|ute|uti|uto|utos?)?|minute\p{L}*|sekund\p{L}*|second\p{L}*|sec|hours?|hrs?|sati|sat|hora\p{L}*|heure\p{L}*|stunden?|giorn\p{L}*|days?|dana|dan|tjed\p{L}*|weeks?|degrees?|stupnj\p{L}*|grad\p{L}*|celsius|fahrenheit|°c|°f|osob\p{L}*|people|persons?|servings?|porcij\p{L}*|portion\p{L}*|porciones?|persone?|personas?|人|分钟|小時|小时|度|минут\p{L}*|час\p{L}*|градус\p{L}*)$/iu;
  const words=String(text).trim();
+ // Bakeware, molds and their dimensions are fixed recipe instructions, not ingredients.
+ // Keep the entire bakeware line unchanged, including formats such as 20x30,
+ // 20 × 30 cm, Ø 24 cm, and a 26 cm round cake tin.
+ if(/\b(?:tepsij\p{L}*|pleh\p{L}*|lim\s+za\s+pečenje|kalup\p{L}*|protvan\p{L}*|pekač\p{L}*|posud\p{L}*\s+za\s+pečenje|baking\s+(?:tray|pan|tin|dish|sheet)|cake\s+(?:pan|tin|mold)|springform\p{L}*|baking\s+mold|baking\s+form|backform\p{L}*|backblech\p{L}*|auflaufform\p{L}*|moule\p{L}*|plaque\s+de\s+cuisson|molde\p{L}*|bandeja\p{L}*|teglia\p{L}*|stampo\p{L}*|форма\s+для\s+выпечки|противень|烤盘|模具)\b/iu.test(words))return text;
  const isInstruction=/\b(?:bake|cook|fry|preheat|boil|simmer|roast|stir|mix|peci|peći|kuhaj|kuhati|prži|prziti|zagrij|pusti|ostavi|miješaj|mijesaj|hornear|cocinar|cuire|backen|kochen)\b/iu.test(words);
  const isHeader=/^(?:ingredients?|sastojci|zutaten|ingredientes?|ingrédients?|ingredienti|材料|ингредиенты)\s*:?$/iu.test(words);
  if(isHeader)return text;
