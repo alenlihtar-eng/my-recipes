@@ -898,4 +898,134 @@ if(raw){decodeShare(raw).then(sharedView).catch(e=>alert('Unable to open shared 
  obs.observe(app,{childList:true,subtree:true});enhanceCards();
 })();
 </script>
+
+<style id="free-cookbook-features-css">
+#free-feature-bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 15px}
+#free-feature-bar button{font-size:14px}
+#weekly-planner{max-width:850px;margin:15px auto;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--paper)}
+#weekly-planner .plan-row{display:grid;grid-template-columns:100px minmax(0,1fr);gap:9px;align-items:center;margin:10px 0}
+#weekly-planner select{min-width:0;width:100%;font-size:16px}
+#weekly-planner .plan-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+#recipe-tags-field input{width:100%}
+#recipe-tag-chips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+#recipe-tag-chips button{font-size:13px;padding:7px 10px}
+#recipe-unit-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+#recipe-unit-controls button{font-size:14px}
+#ocr-import-area{margin:12px 0;padding:13px;border:1px dashed var(--line);border-radius:12px}
+#ocr-import-area input{max-width:100%}
+@media(max-width:480px){#weekly-planner .plan-row{grid-template-columns:78px minmax(0,1fr)}}
+</style>
+<script id="free-cookbook-features">
+(function(){
+'use strict';
+const PLAN_KEY='my-recipes-weekly-plan-v1';
+const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const getPlan=()=>{try{return JSON.parse(localStorage.getItem(PLAN_KEY)||'{}')||{}}catch{return {}}};
+const savePlan=p=>{try{localStorage.setItem(PLAN_KEY,JSON.stringify(p))}catch{alert('Could not save the weekly plan on this device.')}};
+const make=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+const button=(text,fn)=>{const e=make('button',text);e.type='button';e.onclick=fn;return e};
+const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function openPlan(){
+ document.getElementById('weekly-planner')?.remove();
+ const panel=make('section');panel.id='weekly-planner';
+ panel.append(make('h2','Weekly meal plan'),make('p','Choose one of your saved recipes for each day. Your plan stays on this device.'));
+ const plan=getPlan();
+ dayNames.forEach((day,i)=>{
+  const row=make('div');row.className='plan-row';row.append(make('strong',day));
+  const select=make('select');select.setAttribute('aria-label','Recipe for '+day);
+  const empty=make('option','No recipe');empty.value='';select.append(empty);
+  recipes.forEach(r=>{const opt=make('option',r.title);opt.value=r.id;select.append(opt)});
+  select.value=plan[i]||'';
+  select.onchange=()=>{const p=getPlan();p[i]=select.value;savePlan(p)};
+  row.append(select);panel.append(row);
+ });
+ const actions=make('div');actions.className='plan-actions';
+ actions.append(button('Add ingredients to shopping list',()=>{
+  const p=getPlan(),selected=dayNames.map((_,i)=>recipes.find(r=>r.id===p[i])).filter(Boolean);
+  const ingredients=selected.flatMap(r=>String(r.ingredients||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean));
+  if(!ingredients.length)return alert('No structured ingredients found for the selected recipes.');
+  if(!confirm('Add '+ingredients.length+' ingredients to the shopping list? Existing items will remain.'))return;
+  try{const key='my-recipes-shopping-v1',items=JSON.parse(localStorage.getItem(key)||'[]');items.push(...ingredients.map(text=>({id:crypto.randomUUID(),text,done:false})));localStorage.setItem(key,JSON.stringify(items));alert('Ingredients added. Open Shopping list to review them.')}catch{alert('Could not update the shopping list.')}
+ }),button('Clear week',()=>{if(confirm('Clear the weekly plan?')){savePlan({});openPlan()}}),button('Close',()=>panel.remove()));
+ panel.append(actions);const hero=app.querySelector('.hero');(hero||app.firstElementChild)?.after(panel);panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function unitConvert(text,system){
+ const map={
+  metric:{cup:[240,'ml'],cups:[240,'ml'],tbsp:[15,'ml'],tsp:[5,'ml'],oz:[28.35,'g'],lb:[453.6,'g'],lbs:[453.6,'g'],fl_oz:[29.57,'ml']},
+  us:{kg:[2.20462,'lb'],g:[0.035274,'oz'],l:[4.16667,'cups'],ml:[0.00416667,'cups']}
+ };
+ const unitRx=/(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|[½¼¾])\s*(fl\s*oz|cups?|tbsp|tsp|lbs?|oz|kg|ml|g|l)\b/giu;
+ return String(text||'').replace(unitRx,(all,num,unit)=>{
+  const raw=num.replace(/\s/g,'');const val=raw.includes('/')?Number(raw.split('/')[0])/Number(raw.split('/')[1]):({'½':.5,'¼':.25,'¾':.75}[raw]??Number(raw.replace(',','.')));
+  const key=unit.toLowerCase().replace(/\s+/g,'_');const conv=map[system][key];
+  if(!conv||!Number.isFinite(val))return all;
+  const result=val*conv[0];const rounded=result>=100?Math.round(result):Math.round(result*10)/10;
+  return rounded+' '+conv[1];
+ });
+}
+function enhanceDetail(){
+ if(page!=='detail'||!current?.id)return;
+ const panel=app.querySelector('.panel');if(!panel||document.getElementById('recipe-unit-controls'))return;
+ const holder=make('div');holder.id='recipe-unit-controls';holder.append(make('span','Ingredient units:'));
+ const ingredients=panel.querySelector('#recipe-body .checkline')?.parentElement||panel.querySelector('#recipe-body .pre');
+ if(!ingredients||needsOriginalLayout(current))return;
+ const original=String(current.ingredients||'');
+ const lines=[...panel.querySelectorAll('#recipe-body .checkline span')];
+ const apply=mode=>{
+  const source=original.split(/\r?\n/).filter(Boolean);
+  if(lines.length){lines.forEach((node,i)=>{node.textContent=mode==='original'?source[i]||'':unitConvert(source[i]||'',mode)})}
+  else ingredients.textContent=mode==='original'?original:unitConvert(original,mode);
+ };
+ holder.append(button('Original',()=>apply('original')),button('Metric',()=>apply('metric')),button('US units',()=>apply('us')));
+ const body=panel.querySelector('#recipe-body');body?.prepend(holder);
+ const tags=(current.tags||[]).filter(Boolean);if(tags.length){const p=make('p','Tags: '+tags.join(' · '));p.className='muted';panel.querySelector('h1')?.after(p)}
+}
+function enhanceEdit(){
+ if(page!=='edit'||!current||document.getElementById('recipe-tags-field'))return;
+ const panel=app.querySelector('.panel');const actions=panel?.querySelector('.actions');if(!actions)return;
+ const field=make('label');field.className='field';field.id='recipe-tags-field';field.append(make('span','Tags (comma separated)'));
+ const input=make('input');input.placeholder='Quick, Healthy, Family';input.value=(current.tags||[]).join(', ');
+ input.oninput=()=>{current.tags=[...new Set(input.value.split(',').map(s=>s.trim()).filter(Boolean))];saveRecipeDraft()};
+ field.append(input);actions.before(field);
+}
+function enhanceHome(){
+ if(page!=='home')return;
+ const toolbar=app.querySelector('.toolbar');
+ if(!toolbar)return;
+ if(!document.getElementById('free-feature-bar')){
+  const bar=make('div');bar.id='free-feature-bar';
+  bar.append(button('Weekly plan',openPlan));
+  toolbar.after(bar);
+ }
+ if(!document.getElementById('recipe-tag-chips')){
+  const tags=[...new Set(recipes.flatMap(r=>Array.isArray(r.tags)?r.tags:[]))].sort();
+  if(tags.length){
+   const chips=make('div');chips.id='recipe-tag-chips';
+   chips.append(button('All tags',()=>{app.querySelectorAll('.card').forEach(c=>c.style.display='')}));
+   tags.forEach(tag=>chips.append(button('# '+tag,()=>{app.querySelectorAll('.card').forEach(c=>{const r=recipes.find(r=>r.id===c.dataset.id);c.style.display=r?.tags?.some(t=>normalize(t)===normalize(tag))?'':'none'})})));
+   document.getElementById('free-feature-bar')?.after(chips);
+  }
+ }
+}
+function enhanceImport(){
+ if(page!=='import'||document.getElementById('ocr-import-area'))return;
+ const text=document.getElementById('importText');if(!text)return;
+ const area=make('div');area.id='ocr-import-area';area.append(make('strong','Import from a screenshot or photo'));
+ const note=make('p','Select an image to extract visible recipe text on this device. Text recognition depends on browser support; you can always copy and paste the text manually.');note.className='muted';area.append(note);
+ const file=make('input');file.type='file';file.accept='image/*';file.setAttribute('aria-label','Choose a recipe screenshot');
+ const status=make('p');status.className='muted';status.setAttribute('role','status');
+ file.onchange=async()=>{
+  const image=file.files?.[0];if(!image)return;
+  if(!('TextDetector' in window)){status.textContent='This browser does not support free on-device text recognition. Copy the text from the image using your phone’s photo text-selection feature and paste it above.';return}
+  status.textContent='Reading text from image...';
+  try{const detector=new TextDetector();const bitmap=await createImageBitmap(image);const blocks=await detector.detect(bitmap);bitmap.close?.();const extracted=blocks.map(x=>x.rawValue).filter(Boolean).join('\n');if(!extracted.trim())throw Error('No text detected');text.value=[text.value.trim(),extracted].filter(Boolean).join('\n\n');text.dispatchEvent(new Event('input',{bubbles:true}));status.textContent='Text added. Review it carefully, then select Prepare recipe.'}catch(e){status.textContent='Could not read the image. Please copy and paste the recipe text manually.'}
+ };
+ area.append(file,status);text.closest('label')?.after(area);
+}
+function enhance(){enhanceHome();enhanceDetail();enhanceEdit();enhanceImport()}
+const observer=new MutationObserver(()=>{observer.disconnect();try{enhance()}finally{observer.observe(app,{childList:true,subtree:true})}});
+observer.observe(app,{childList:true,subtree:true});enhance();
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
+})();
+</script>
 </body></html>
