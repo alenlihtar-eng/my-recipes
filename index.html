@@ -431,6 +431,14 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 .shop-entry input{margin-top:5px;accent-color:var(--accent)}.shop-entry span{flex:1;overflow-wrap:anywhere}
 .shop-entry.done span{text-decoration:line-through;opacity:.6}
 .shop-entry button{padding:3px 8px}
+/* iOS: keep the ingredient text wide instead of shrinking it to one character per line. */
+#recipe-shopping-dialog .shop-entry,#ingredient-picker-dialog .shop-entry{display:grid!important;grid-template-columns:28px minmax(0,1fr) 34px!important;align-items:start;gap:12px;width:100%;box-sizing:border-box}
+#ingredient-picker-dialog .shop-entry{grid-template-columns:28px minmax(0,1fr)!important}
+#recipe-shopping-dialog .shop-entry input,#ingredient-picker-dialog .shop-entry input{width:23px;height:23px;min-width:23px;flex:none;margin:2px 0}
+#recipe-shopping-dialog .shop-entry span,#ingredient-picker-dialog .shop-entry span{display:block;min-width:0;width:auto;max-width:100%;font-family:inherit;font-size:16px;line-height:1.45;overflow-wrap:break-word;word-break:normal;white-space:normal}
+#recipe-shopping-dialog .shop-entry button{width:32px;min-width:32px;justify-self:end;padding:3px 6px}
+#recipe-shopping-dialog .shop-sheet,#ingredient-picker-dialog .shop-sheet{min-width:0;box-sizing:border-box;overflow-x:hidden}
+
 .shop-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 #practical-detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 #focused-steps{margin:16px 0;padding:18px;border:1px solid var(--line);border-radius:15px;background:var(--paper)}
