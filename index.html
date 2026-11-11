@@ -260,20 +260,33 @@ function scaledLine(line,ratio){
 }
 function scaledCaption(text,ratio){
  if(ratio===1)return text;
- // TikTok captions put amounts inside sentences and after bullet symbols.
- // Match explicit ingredient units anywhere, but leave temperatures and timings alone.
- return String(text).replace(/(^|[^\p{L}\p{N}])((?:\d+\s*\/\s*\d+)|(?:\d+(?:[.,]\d+)?))\s*(kg|mg|ml|dl|cl|g|l|oz|lb|cups?|tbsp|tsp|žlic(?:a|e|u|om|ama)?|žličic(?:a|e|u|om|ama)?|kom(?:ada)?|pcs?|jaja|jaje|jajeta|eggs?|bjelanj(?:ak|ka|aka)|žumanj(?:ak|ka|aka))(?=$|[^\p{L}])/giu,(whole,before,num,unit)=>{
-  let n;
-  if(num.includes('/')){const [a,b]=num.split('/').map(Number);n=b?a/b:NaN}
-  else n=Number(num.replace(',','.'));
-  if(!Number.isFinite(n))return whole;
-  const v=n*ratio;
-  const u=unit.toLowerCase();
-  let rounded;
-  if(/^(?:g|mg|ml|cl|kom|komada|pcs?|jaja|jaje|jajeta|eggs?|bjelanj|bjelanjka|bjelanjaka|žumanjak|žumanjka|žumanjaka)$/iu.test(u))rounded=Math.max(v>0?1:0,Math.round(v));
-  else if(/^(?:žlic|žličic|tbsp|tsp|cups?)/iu.test(u))rounded=Math.max(v>0?.25:0,Math.round(v*4)/4);
-  else rounded=Math.round(v*10)/10;
-  return before+String(rounded).replace('.',num.includes(',')?',':'.')+' '+unit;
+ // Language-independent numeric ingredient recognition. Unknown nouns after a quantity
+ // are treated as countable food only in ingredient-like lines; no food-name dictionary.
+ const units=/^(?:kg|mg|ml|dl|cl|g|l|oz|lbs?|cups?|tbsp|tsp|žlic\p{L}*|žličic\p{L}*|kom(?:ada)?|pcs?|pieces?|piece|units?|unit|stk|stuks?|st|ud|uds|unid(?:ades)?|pz|pzas?|pi[eè]ces?|st[üu]ck|шт|шт\.|个|個|枚|本|杯|匙|勺|гр|кг|мл|л)$/iu;
+ const blocked=/^(?:min(?:s|utes?|uta|ute|uti|uto|utos?)?|minute\p{L}*|sekund\p{L}*|second\p{L}*|sec|hours?|hrs?|sati|sat|hora\p{L}*|heure\p{L}*|stunden?|giorn\p{L}*|days?|dana|dan|tjed\p{L}*|weeks?|degrees?|stupnj\p{L}*|grad\p{L}*|celsius|fahrenheit|°c|°f|osob\p{L}*|people|persons?|servings?|porcij\p{L}*|portion\p{L}*|porciones?|persone?|personas?|人|分钟|小時|小时|度|минут\p{L}*|час\p{L}*|градус\p{L}*)$/iu;
+ const words=String(text).trim();
+ const isInstruction=/\b(?:bake|cook|fry|preheat|boil|simmer|roast|stir|mix|peci|peći|kuhaj|kuhati|prži|prziti|zagrij|pusti|ostavi|miješaj|mijesaj|hornear|cocinar|cuire|backen|kochen)\b/iu.test(words);
+ const isHeader=/^(?:ingredients?|sastojci|zutaten|ingredientes?|ingrédients?|ingredienti|材料|ингредиенты)\s*:?$/iu.test(words);
+ if(isHeader)return text;
+ return String(text).replace(/(^|[^\p{L}\p{N}])(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)(\s*)([\p{L}\p{M}]+)(?=$|[^\p{L}\p{M}])/giu,(whole,before,num,space,word,offset,full)=>{
+   const u=word.toLowerCase();
+   if(blocked.test(u))return whole;
+   const explicit=units.test(u);
+   if(!explicit){
+     // Do not change steps, dates, time, oven temperatures or serving labels.
+     const nearby=full.slice(Math.max(0,offset-14),offset+whole.length+12);
+     if(isInstruction||/\d+\s*[°º]|(?:^|[\s(])(?:step|korak|passo|schritt)\s*\d/iu.test(nearby))return whole;
+     if(/^(?:recept|recipe|video|part|dio|korak|step|seite|page|strana|foto|photo|like|comment|komentar|episode|epizoda|day|dan)$/iu.test(u))return whole;
+     if(/\b(?:for|za|serves?|servings?|portions?|für|para)\s*$/iu.test(full.slice(Math.max(0,offset-18),offset)))return whole;
+   }
+   let n;
+   if(num.includes('/')){const [x,y]=num.split('/').map(Number);n=y?x/y:NaN}
+   else n=Number(num.replace(',','.'));
+   if(!Number.isFinite(n)||n<=0||n>10000)return whole;
+   const value=n*ratio;
+   const small=explicit&&/^(?:žlic|žličic|tbsp|tsp|cups?|杯|匙|勺)/iu.test(u);
+   const rounded=small?Math.max(.25,Math.round(value*4)/4):explicit&&/^(?:kg|l|dl|lb|oz)$/iu.test(u)?Math.round(value*10)/10:Math.max(1,Math.round(value));
+   return before+String(rounded).replace('.',num.includes(',')?',':'.')+space+word;
  });
 }
 function remember(id){
