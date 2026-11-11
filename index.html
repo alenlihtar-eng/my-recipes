@@ -545,7 +545,7 @@ function addIngredients(){
   row.append(check,label);scroll.append(row);checks.push(check);
  });
  const actions=document.createElement('div');actions.className='shop-actions';
- const selectAll=document.createElement('button');selectAll.type='button';selectAll.textContent='Select all';selectAll.onclick=()=>{checks.forEach((c,i)=>{c.checked=true;selected.add(i)});update()};
+ const selectAll=document.createElement('button');selectAll.type='button';selectAll.textContent='Select all';selectAll.onclick=()=>{const allSelected=selected.size===checks.length;if(allSelected){checks.forEach(c=>c.checked=false);selected.clear()}else{checks.forEach((c,i)=>{c.checked=true;selected.add(i)})}update()};
  const clear=document.createElement('button');clear.type='button';clear.textContent='Clear selection';clear.onclick=()=>{checks.forEach(c=>c.checked=false);selected.clear();update()};
  const add=document.createElement('button');add.type='button';add.className='primary';
  add.onclick=()=>{
@@ -553,7 +553,7 @@ function addIngredients(){
   if(!items.length)return;
   saveShop([...getShop(),...items]);close();dialog();
  };
- const update=()=>{add.disabled=!selected.size;add.textContent='Add '+selected.size+' to shopping list'};
+ const update=()=>{selectAll.textContent=selected.size===checks.length?'Deselect all':'Select all';add.disabled=!selected.size;add.textContent='Add '+selected.size+' to shopping list'};
  actions.append(selectAll,clear,add);sheet.append(actions);update();
 }
 
