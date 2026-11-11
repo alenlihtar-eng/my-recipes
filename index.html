@@ -258,6 +258,24 @@ function scaledLine(line,ratio){
    return lead+shown+space+unit;
  });
 }
+function scaledCaption(text,ratio){
+ if(ratio===1)return text;
+ // TikTok captions put amounts inside sentences and after bullet symbols.
+ // Match explicit ingredient units anywhere, but leave temperatures and timings alone.
+ return String(text).replace(/(^|[^\p{L}\p{N}])((?:\d+\s*\/\s*\d+)|(?:\d+(?:[.,]\d+)?))\s*(kg|mg|ml|dl|cl|g|l|oz|lb|cups?|tbsp|tsp|žlic(?:a|e|u|om|ama)?|žličic(?:a|e|u|om|ama)?|kom(?:ada)?|pcs?|jaja|jaje|jajeta|eggs?|bjelanj(?:ak|ka|aka)|žumanj(?:ak|ka|aka))(?=$|[^\p{L}])/giu,(whole,before,num,unit)=>{
+  let n;
+  if(num.includes('/')){const [a,b]=num.split('/').map(Number);n=b?a/b:NaN}
+  else n=Number(num.replace(',','.'));
+  if(!Number.isFinite(n))return whole;
+  const v=n*ratio;
+  const u=unit.toLowerCase();
+  let rounded;
+  if(/^(?:g|mg|ml|cl|kom|komada|pcs?|jaja|jaje|jajeta|eggs?|bjelanj|bjelanjka|bjelanjaka|žumanjak|žumanjka|žumanjaka)$/iu.test(u))rounded=Math.max(v>0?1:0,Math.round(v));
+  else if(/^(?:žlic|žličic|tbsp|tsp|cups?)/iu.test(u))rounded=Math.max(v>0?.25:0,Math.round(v*4)/4);
+  else rounded=Math.round(v*10)/10;
+  return before+String(rounded).replace('.',num.includes(',')?',':'.')+' '+unit;
+ });
+}
 function remember(id){
  if(!id||!recipes.some(r=>r.id===id)||lastDetail===id)return;
  lastDetail=id;
@@ -315,7 +333,7 @@ function enhanceDetail(){
          const source=originalRecipeMarkup(current.originalText||current.ingredients);
          const tmp=document.createElement('div');tmp.innerHTML=source;
          const originals=tmp.querySelectorAll('p');
-         paragraphs.forEach((el,i)=>{el.textContent=scaledLine(originals[i]?.textContent||'',ratio)});
+         paragraphs.forEach((el,i)=>{el.textContent=scaledCaption(originals[i]?.textContent||'',ratio)});
        }else{
          const lines=asLines(current.ingredients);
          holder.querySelectorAll('.checkline span').forEach((el,i)=>{el.textContent=scaledLine(lines[i]||'',ratio)});
