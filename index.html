@@ -92,4 +92,32 @@ let combined=texts.join('\n');let input=document.getElementById('importText');in
 const prevImportScreen=importScreen;importScreen=function(){prevImportScreen();addVideoImport()};
 if(page==='import')addVideoImport();
 })();
+</script><script id="swipe-navigation">
+(function(){
+const sections=['recipes','favorites','collections','import','settings'];
+let start=null;
+function go(section){
+if(section==='import'){if(typeof importScreen==='function')importScreen();return}
+view=section;page='home';favs=section==='favorites';
+if(section!=='recipes'&&section!=='favorites'){search='';cat='All'}
+render();window.scrollTo({top:0,behavior:'instant'});
+}
+document.addEventListener('touchstart',event=>{
+if(event.touches.length!==1){start=null;return}
+const target=event.target;
+if(target.closest('input,textarea,select,[contenteditable="true"],.cookbar,video,canvas')){start=null;return}
+const t=event.touches[0];start={x:t.clientX,y:t.clientY,time:Date.now(),target};
+},{passive:true});
+document.addEventListener('touchend',event=>{
+if(!start||event.changedTouches.length!==1)return;
+const t=event.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y,elapsed=Date.now()-start.time;start=null;
+if(Math.abs(dx)<85||Math.abs(dx)<Math.abs(dy)*1.7||elapsed>850)return;
+if(page==='detail'&&dx>0){home();return}
+if(page!=='home'&&page!=='import')return;
+const index=sections.indexOf(page==='import'?'import':view);
+const next=index+(dx<0?1:-1);
+if(next>=0&&next<sections.length)go(sections[next]);
+},{passive:true});
+document.addEventListener('touchcancel',()=>{start=null},{passive:true});
+})();
 </script></body></html>
