@@ -39,6 +39,8 @@ const oldHome=home;home=function(){view='recipes';oldHome()};const oldDetail=det
 let importDraft=null;
 function parseRecipeText(text,source=''){
 const raw=String(text||'').replace(/\r/g,'').replace(/\u00a0/g,' ')
+.replace(/([^\n])\s*(?=(?:način\s+pripreme|nacin\s+pripreme|način\s+pripremanja|postupak\s+pripreme|priprema|postupak|upute\s+za\s+pripremu|instructions|directions|method|preparation|how\s+to\s+make|steps|начин\s+припреме|припрема|поступак)\s*[:：])/giu,'$1\n')
+.replace(/([^\n])\s*(?=(?:potrebno(?:\s+je)?|potrebni\s+sastojci|sastojci|namirnice|ingredients|ingredient\s+list|you\s+will\s+need|what\s+you\s+need|састојци|потребно)\s*[:：])/giu,'$1\n')
 .replace(/\s+(?=(?:potrebno(?:\s+je)?|potrebni sastojci|sastojci|namirnice|ingredients|ingredient list|you will need|what you need|састојци|потребно|način pripreme|nacin pripreme|postupak pripreme|priprema|postupak|instructions|directions|method|preparation|how to make|начин припреме|припрема|поступак)\s*[:：])/giu,'\n')
 .replace(/([^\n])\s+([-•]\s*(?=(?:\d|[½¼¾⅓⅔]|pola\b|half\b|sol\b|so\b|salt\b)))/giu,'$1\n$2').trim();
 const headingIngredients=/^(?:potrebno(?:\s+je)?|potrebni sastojci|sastojci(?:\s+za\s+.{1,45})?|namirnice|za recept(?:\s+je potrebno)?|ingredients(?:\s+for\s+.{1,45})?|ingredient list|you(?:'|’)ll need|you will need|what you need|what you'll need|you need|for the recipe|shopping list|састојци|потребно(?:\s+је)?|намирнице)\s*[:：\-–]?\s*$/iu;
@@ -55,7 +57,7 @@ if(headingIngredients.test(head)){section='ing';hasIng=true;continue}
 if(headingSteps.test(head)){section='steps';hasSteps=true;continue}
 let im=line.match(ingPrefix);if(im){section='ing';hasIng=true;line=line.slice(im[0].length).trim();if(!line)continue}
 let sm=line.match(stepPrefix);if(sm){section='steps';hasSteps=true;line=line.slice(sm[0].length).trim();if(!line)continue}
-if(section==='ing'){ing.push(line);continue}
+if(section==='ing'){let inlineStep=line.match(/\b(?:način\s+pripreme|nacin\s+pripreme|priprema|postupak|instructions|directions|method|preparation)\s*[:：]/iu);if(inlineStep){let at=inlineStep.index;let first=line.slice(0,at).trim();if(first)ing.push(first);section='steps';hasSteps=true;let remainder=line.slice(at+inlineStep[0].length).trim();if(remainder)steps.push(remainder);continue}ing.push(line);continue}
 if(section==='steps'){steps.push(line);continue}
 before.push(line);
 }
