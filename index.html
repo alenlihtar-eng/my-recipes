@@ -502,15 +502,44 @@ function ingredientLines(){
 function addIngredients(){
  const lines=ingredientLines();
  if(!lines){alert('This imported recipe has not been separated into ingredients yet. Open Edit & organize to enter ingredients first.');return}
- const existing=getShop();const added=lines.map(text=>({id:uid(),text,done:false}));
- saveShop([...existing,...added]);dialog();
+ document.getElementById('ingredient-picker-dialog')?.remove();
+ const overlay=document.createElement('div');overlay.id='ingredient-picker-dialog';overlay.style.cssText='position:fixed;inset:0;z-index:301;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px';
+ const sheet=document.createElement('div');sheet.className='shop-sheet';sheet.style.cssText='background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(100%,520px);max-height:85dvh;overflow:auto;box-shadow:0 15px 60px #0003';
+ overlay.append(sheet);document.body.append(overlay);
+ const close=()=>overlay.remove();
+ overlay.onclick=e=>{if(e.target===overlay)close()};
+ const head=document.createElement('div');head.className='shop-head';
+ const title=document.createElement('h2');title.textContent='What do you need to buy?';
+ const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Close';cancel.onclick=close;
+ head.append(title,cancel);sheet.append(head);
+ const note=document.createElement('p');note.className='muted';note.textContent='Select only ingredients you do not have at home.';sheet.append(note);
+ const selected=new Set();
+ const checks=[];
+ lines.forEach((line,i)=>{
+  const row=document.createElement('label');row.className='shop-entry';row.style.cursor='pointer';
+  const check=document.createElement('input');check.type='checkbox';check.checked=false;check.onchange=()=>{if(check.checked)selected.add(i);else selected.delete(i);update()};
+  const label=document.createElement('span');label.textContent=line;
+  row.append(check,label);sheet.append(row);checks.push(check);
+ });
+ const actions=document.createElement('div');actions.className='shop-actions';
+ const selectAll=document.createElement('button');selectAll.type='button';selectAll.textContent='Select all';selectAll.onclick=()=>{checks.forEach((c,i)=>{c.checked=true;selected.add(i)});update()};
+ const clear=document.createElement('button');clear.type='button';clear.textContent='Clear selection';clear.onclick=()=>{checks.forEach(c=>c.checked=false);selected.clear();update()};
+ const add=document.createElement('button');add.type='button';add.className='primary';
+ add.onclick=()=>{
+  const items=lines.filter((_,i)=>selected.has(i)).map(text=>({id:uid(),text,done:false}));
+  if(!items.length)return;
+  saveShop([...getShop(),...items]);close();dialog();
+ };
+ const update=()=>{add.disabled=!selected.size;add.textContent='Add '+selected.size+' to shopping list'};
+ actions.append(selectAll,clear,add);sheet.append(actions);update();
 }
+
 function enhanceDetail(){
  if(page!=='detail'||!current?.id)return;
  const panel=app.querySelector('.panel');if(!panel||panel.dataset.practicalEnhanced)return;
  panel.dataset.practicalEnhanced='1';
  const buttons=document.createElement('div');buttons.id='practical-detail-actions';
- const shopping=document.createElement('button');shopping.type='button';shopping.textContent='+ Shopping list';shopping.onclick=addIngredients;
+ const shopping=document.createElement('button');shopping.type='button';shopping.textContent='Choose ingredients to buy';shopping.onclick=addIngredients;
  const open=document.createElement('button');open.type='button';open.textContent='View shopping list';open.onclick=dialog;
  buttons.append(shopping,open);panel.querySelector('.actions')?.after(buttons);
  const bar=panel.querySelector('.cookbar');
