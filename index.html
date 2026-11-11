@@ -496,7 +496,8 @@ function dialog(){
    else prompt('Copy shopping list:',txt);
   };
   const clear=document.createElement('button');clear.textContent='Clear checked';clear.disabled=!items.some(v=>v.done);clear.onclick=()=>{saveShop(getShop().filter(v=>!v.done));draw()};
-  actions.append(add,copy,clear);sheet.append(actions);
+  const markAll=document.createElement('button');markAll.type='button';markAll.textContent='Mark all as bought';markAll.disabled=!items.some(v=>!v.done);markAll.onclick=()=>{saveShop(getShop().map(v=>({...v,done:true})));draw()};
+  actions.append(add,copy,markAll,clear);sheet.append(actions);
  };
  draw();
 }
