@@ -270,6 +270,10 @@ function scaledCaption(text,ratio){
  if(isHeader)return text;
  return String(text).replace(/(^|[^\p{L}\p{N}])(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)(\s*)([\p{L}\p{M}]+)(?=$|[^\p{L}\p{M}])/giu,(whole,before,num,space,word,offset,full)=>{
    const u=word.toLowerCase();
+   // Fixed product dimensions (e.g. 6 tortillas, 25 cm), oven settings and sizes
+   // must not be multiplied when changing servings.
+   if(/^(?:mm|cm|dm|m|km|in|inch|inches|ft|feet|foot|yd|yards?|milimet(?:ar|ra|ara|ara)|centimet(?:ar|ra|ara)|met(?:ar|ra|ara)|millimeters?|centimeters?|metres?|meters?|pulgadas?|pouces?|zoll|寸|厘米|毫米)$/iu.test(u))return whole;
+   if(/^[x×✕]$/iu.test(u)&&/^\s*[x×✕]\s*\d+(?:[.,]\d+)?\s*(?:mm|cm|m|in|inch|ft)\b/iu.test(full.slice(offset+before.length+num.length)))return whole;
    if(blocked.test(u))return whole;
    const explicit=units.test(u);
    if(!explicit){
