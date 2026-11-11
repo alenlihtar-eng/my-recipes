@@ -18,4 +18,26 @@ const originalDecorate=decorate;decorate=function(){originalDecorate();if(page==
 const prevNav=nav;nav=function(){prevNav();let add=document.querySelector('[data-nav="add"]');if(add){add.title='Add a recipe manually';}let navEl=document.getElementById('heritage-nav');if(navEl&&!navEl.querySelector('[data-nav="import"]')){let b=document.createElement('button');b.dataset.nav='import';b.textContent='↗ Import';b.onclick=importScreen;navEl.insertBefore(b,navEl.querySelector('[data-nav="settings"]'))}};
 window.addEventListener('DOMContentLoaded',()=>{if(location.search.includes('url=')){let url=new URLSearchParams(location.search).get('url');importScreen();document.getElementById('importUrl').value=url||''}});
 render();
+</script><style id="video-ocr-style">.video-import{border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:20px}.video-import video{width:100%;max-height:250px;border-radius:12px;background:#211d1b}.video-import progress{width:100%;accent-color:var(--accent)}.video-import small{display:block;margin:8px 0;color:#776a62}.video-import .warning{font-size:13px;background:#f4e7d9;padding:10px;border-radius:10px}</style><script id="video-ocr-script">
+(function(){
+let busy=false;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function addVideoImport(){
+if(page!=='import'||document.getElementById('videoImport'))return;
+const form=document.querySelector('.import-form');if(!form)return;
+let block=document.createElement('section');block.id='videoImport';block.className='video-import';
+block.innerHTML='<h2>Import from a video</h2><p>Choose a video saved on your device. My Recipes can read text shown in the video for free, directly in your browser.</p><input type="file" id="videoFile" accept="video/*"><video id="videoPreview" controls playsinline preload="metadata" hidden></video><div class="actions"><button class="primary" id="scanVideo" disabled>Read text from video</button></div><progress id="videoProgress" max="100" value="0" hidden></progress><small id="videoStatus"></small><p class="warning">This first version reads visible text in selected video frames. It does not transcribe spoken words, and cannot automatically download protected TikTok or Instagram videos. Review the extracted recipe before saving.</p>';
+form.querySelector('#importResult').before(block);
+let fileInput=block.querySelector('#videoFile'),vid=block.querySelector('#videoPreview'),btn=block.querySelector('#scanVideo'),status=block.querySelector('#videoStatus'),progress=block.querySelector('#videoProgress');let blobUrl;
+fileInput.onchange=()=>{if(blobUrl)URL.revokeObjectURL(blobUrl);let file=fileInput.files?.[0];if(!file)return;if(file.size>250*1024*1024){alert('Please choose a video smaller than 250 MB.');fileInput.value='';return}blobUrl=URL.createObjectURL(file);vid.src=blobUrl;vid.hidden=false;btn.disabled=false;status.textContent='Ready to scan text shown in the video.'};
+btn.onclick=async()=>{if(busy)return;busy=true;btn.disabled=true;progress.hidden=false;progress.value=0;let worker;try{
+if(!window.Tesseract){status.textContent='Loading free text recognition...';await new Promise((resolve,reject)=>{let s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=resolve;s.onerror=()=>reject(Error('OCR library could not load'));document.head.append(s)})}
+worker=await Tesseract.createWorker('eng');let duration=vid.duration;if(!Number.isFinite(duration)||duration<=0)throw Error('Video metadata unavailable');let count=Math.min(16,Math.max(4,Math.ceil(duration/8))),texts=[];let canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});for(let i=0;i<count;i++){let time=Math.min(duration-.05,(i+.5)*duration/count);await new Promise((resolve,reject)=>{let timer=setTimeout(()=>reject(Error('Could not read video frame')),9000);vid.onseeked=()=>{clearTimeout(timer);resolve()};vid.currentTime=time});let scale=Math.min(1,1280/Math.max(vid.videoWidth,vid.videoHeight));canvas.width=Math.max(1,Math.floor(vid.videoWidth*scale));canvas.height=Math.max(1,Math.floor(vid.videoHeight*scale));ctx.drawImage(vid,0,0,canvas.width,canvas.height);let result=await worker.recognize(canvas);let t=result.data.text.trim();if(t&&!texts.some(x=>x===t))texts.push(t);progress.value=Math.round((i+1)/count*100);status.textContent='Reading frame '+(i+1)+' of '+count+'...'}
+if(!texts.length){status.textContent='No readable text found. This video may only contain spoken instructions.';return}
+let combined=texts.join('\n');let input=document.getElementById('importText');input.value=(input.value?input.value+'\n':'')+combined;status.textContent='Found text in '+texts.length+' frames. Review the text below, then select Prepare recipe.';input.focus()
+}catch(e){status.textContent='Video scanning failed: '+e.message}finally{if(worker)await worker.terminate();busy=false;btn.disabled=false}};
+}
+const prevImportScreen=importScreen;importScreen=function(){prevImportScreen();addVideoImport()};
+if(page==='import')addVideoImport();
+})();
 </script></body></html>
