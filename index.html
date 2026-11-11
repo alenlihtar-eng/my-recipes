@@ -1028,4 +1028,55 @@ observer.observe(app,{childList:true,subtree:true});enhance();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
 })();
 </script>
+
+<style id="cookbook-home-polish">
+#home-kitchen-tools{margin:14px 0 23px;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 5px 20px #00000008}
+#home-kitchen-tools .kitchen-head{display:flex;align-items:center;gap:11px;margin-bottom:12px}
+#home-kitchen-tools .kitchen-icon{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:12px;background:var(--accent);color:white;font-size:19px}
+#home-kitchen-tools .kitchen-title{font-family:Georgia,serif;font-size:19px;font-weight:700;line-height:1.2}
+#home-kitchen-tools .kitchen-subtitle{font-size:13px;color:var(--muted);margin-top:3px}
+#home-kitchen-tools .kitchen-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#home-kitchen-tools .kitchen-actions button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--ink);font-size:15px;font-weight:600}
+#home-kitchen-tools .kitchen-actions button:first-child{background:var(--accent);color:white;border-color:var(--accent)}
+#home-kitchen-tools .kitchen-more{margin-top:10px}
+#home-kitchen-tools .kitchen-more summary{cursor:pointer;font-size:13px;color:var(--muted);padding:6px 2px;list-style:none}
+#home-kitchen-tools .kitchen-more summary::after{content:'  ▾'}
+#home-kitchen-tools .kitchen-more[open] summary::after{content:'  ▴'}
+#home-kitchen-tools .kitchen-more button{width:100%;margin-top:7px;text-align:center;font-size:13px}
+#recipe-tag-chips{margin:6px 0 20px;align-items:center}
+#recipe-tag-chips::before{content:'Filter by tag';display:block;width:100%;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:2px}
+#recipe-tag-chips button{border-radius:999px;padding:8px 13px;font-size:13px}
+#recipe-tag-chips button.is-selected{background:var(--accent);color:white;border-color:var(--accent)}
+@media(max-width:420px){#home-kitchen-tools{padding:13px}#home-kitchen-tools .kitchen-actions button{font-size:14px;padding:10px 7px}}
+</style>
+<script id="cookbook-home-polish-script">
+(function(){
+ const app=document.getElementById('app');
+ function arrange(){
+  if(page!=='home')return;
+  const bar=document.getElementById('free-feature-bar'),shop=document.getElementById('open-shopping-home'),merge=document.getElementById('merge-shopping');
+  if(!bar||!shop||!merge||document.getElementById('home-kitchen-tools'))return;
+  const wrapper=document.createElement('section');wrapper.id='home-kitchen-tools';wrapper.setAttribute('aria-label','Kitchen tools');
+  const head=document.createElement('div');head.className='kitchen-head';
+  const icon=document.createElement('span');icon.className='kitchen-icon';icon.textContent='✦';icon.setAttribute('aria-hidden','true');
+  const words=document.createElement('div'),title=document.createElement('div'),subtitle=document.createElement('div');
+  title.className='kitchen-title';title.textContent='Kitchen tools';subtitle.className='kitchen-subtitle';subtitle.textContent='Plan your meals and shop with ease';
+  words.append(title,subtitle);head.append(icon,words);
+  const actions=document.createElement('div');actions.className='kitchen-actions';
+  const plan=bar.querySelector('button');if(plan){plan.textContent='▦  Weekly plan';actions.append(plan)}
+  shop.textContent='☷  Shopping list';actions.append(shop);
+  const more=document.createElement('details');more.className='kitchen-more';const summary=document.createElement('summary');summary.textContent='More shopping options';
+  merge.textContent='Combine matching ingredients';merge.removeAttribute('style');more.append(summary,merge);
+  wrapper.append(head,actions,more);
+  bar.replaceWith(wrapper);
+  const chips=document.getElementById('recipe-tag-chips');
+  if(chips){
+   let active=chips.querySelector('button.is-selected');if(!active){active=chips.querySelector('button');active?.classList.add('is-selected')}
+   chips.querySelectorAll('button').forEach(btn=>{if(btn.dataset.polished)return;btn.dataset.polished='1';btn.addEventListener('click',()=>{chips.querySelectorAll('button').forEach(x=>x.classList.remove('is-selected'));btn.classList.add('is-selected')})});
+  }
+ }
+ const obs=new MutationObserver(()=>{obs.disconnect();try{arrange()}finally{obs.observe(app,{childList:true,subtree:true})}});
+ obs.observe(app,{childList:true,subtree:true});arrange();
+})();
+</script>
 </body></html>
