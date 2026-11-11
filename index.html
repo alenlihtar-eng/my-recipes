@@ -825,4 +825,57 @@ const raw=new URLSearchParams(location.search).get('shared');
 if(raw){decodeShare(raw).then(sharedView).catch(e=>alert('Unable to open shared recipe: '+e.message))}
 })();
 </script>
+
+<style id="recipe-longpress-style">
+#recipe-card-menu{position:fixed;inset:0;z-index:550;background:#0007;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px max(22px,env(safe-area-inset-bottom))}
+#recipe-card-menu .longpress-sheet{width:min(100%,420px);background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 15px 50px #0004}
+#recipe-card-menu .longpress-sheet h2{font-size:20px;margin:0 0 15px;overflow-wrap:anywhere}
+#recipe-card-menu .longpress-sheet button{display:block;width:100%;margin:8px 0;text-align:center}
+#recipe-card-menu .longpress-sheet .longpress-delete{color:#b64b43;border-color:#b64b43}
+.card{touch-action:pan-y}
+</style>
+<script id="recipe-card-longpress">
+(function(){
+ 'use strict';
+ let suppressUntil=0;
+ function showMenu(id){
+  const r=recipes.find(x=>x.id===id);if(!r)return;
+  document.getElementById('recipe-card-menu')?.remove();
+  const overlay=document.createElement('div');overlay.id='recipe-card-menu';
+  const sheet=document.createElement('div');sheet.className='longpress-sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');sheet.setAttribute('aria-label','Recipe options');
+  const title=document.createElement('h2');title.textContent=r.title;
+  const button=(text,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=()=>{overlay.remove();fn()};return b};
+  const editBtn=button('Edit recipe',()=>edit(id));
+  const deleteBtn=button('Delete recipe',()=>removeRecipe(id));deleteBtn.className='longpress-delete';
+  const cancel=button('Cancel',()=>{});
+  sheet.append(title,editBtn,deleteBtn,cancel);overlay.append(sheet);document.body.append(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};
+  document.addEventListener('keydown',onKey,{once:true});
+ }
+ function enhanceCards(){
+  if(page!=='home')return;
+  for(const card of app.querySelectorAll('.card[data-id]')){
+   if(card.dataset.longpressReady)continue;
+   card.dataset.longpressReady='1';
+   card.style.webkitTouchCallout='none';
+   let timer=null,startX=0,startY=0,triggered=false;
+   const clear=()=>{if(timer!==null){clearTimeout(timer);timer=null}};
+   card.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    clear();triggered=false;startX=e.clientX;startY=e.clientY;
+    timer=setTimeout(()=>{timer=null;triggered=true;suppressUntil=Date.now()+1100;showMenu(card.dataset.id)},550);
+   });
+   card.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-startX)>12||Math.abs(e.clientY-startY)>12)clear()});
+   card.addEventListener('pointerup',clear);
+   card.addEventListener('pointercancel',clear);
+   card.addEventListener('pointerleave',clear);
+   card.addEventListener('click',e=>{if(triggered||Date.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();triggered=false}},true);
+   card.addEventListener('contextmenu',e=>{e.preventDefault();clear();triggered=true;suppressUntil=Date.now()+1100;showMenu(card.dataset.id)});
+  }
+ }
+ const obs=new MutationObserver(()=>{obs.disconnect();try{enhanceCards()}finally{obs.observe(app,{childList:true,subtree:true})}});
+ obs.observe(app,{childList:true,subtree:true});enhanceCards();
+})();
+</script>
 </body></html>
