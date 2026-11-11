@@ -800,7 +800,7 @@ function addGrowthButtons(){
  const actions=document.createElement('div');actions.id='recipe-growth-actions';
  actions.append(makeButton('Share recipe',()=>shareRecipe(current)));
  if(needsOriginalLayout(current))actions.append(makeButton('Organize ingredients & steps',()=>organizeRecipe(current)));
- panel.querySelector('.actions')?.after(actions);
+ panel.querySelector('.actions')?.before(actions);
 }
 function addTimer(){
  if(page!=='detail'||!current?.id||!document.getElementById('focused-steps')||document.getElementById('cookbook-timer'))return;
@@ -845,10 +845,11 @@ if(raw){decodeShare(raw).then(sharedView).catch(e=>alert('Unable to open shared 
   const sheet=document.createElement('div');sheet.className='longpress-sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');sheet.setAttribute('aria-label','Recipe options');
   const title=document.createElement('h2');title.textContent=r.title;
   const button=(text,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=()=>{overlay.remove();fn()};return b};
+  const shareBtn=button('Share recipe',()=>shareRecipe(r));shareBtn.className='primary';
   const editBtn=button('Edit recipe',()=>edit(id));
   const deleteBtn=button('Delete recipe',()=>removeRecipe(id));deleteBtn.className='longpress-delete';
   const cancel=button('Cancel',()=>{});
-  sheet.append(title,editBtn,deleteBtn,cancel);overlay.append(sheet);document.body.append(overlay);
+  sheet.append(title,shareBtn,editBtn,deleteBtn,cancel);overlay.append(sheet);document.body.append(overlay);
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
   const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};
   document.addEventListener('keydown',onKey,{once:true});
