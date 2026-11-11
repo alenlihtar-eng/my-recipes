@@ -73,7 +73,7 @@ main{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))!important}
 @media(min-width:800px){#heritage-nav{border-radius:22px;margin-bottom:12px;border-bottom:1px solid var(--line)}}
 @media(max-width:700px){#heritage-nav{width:100%;border-left:0;border-right:0;border-radius:19px 19px 0 0;gap:5px!important;padding-left:10px!important;padding-right:10px!important}#heritage-nav button{min-height:57px!important}main{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))!important}}
 @media(prefers-reduced-motion:reduce){#heritage-nav button,#heritage-nav button .tab-icon svg{transition:none}}
-</style></head><body><header><strong>✿ my recipes</strong><div class="header-right"><small>YOUR PERSONAL COOKBOOK</small><button type="button" id="top-settings" aria-label="Open settings" title="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-2 2-.06-.06A1.65 1.65 0 0 0 15.9 18.5a1.65 1.65 0 0 0-1.1 1.5V21h-2.8v-1a1.65 1.65 0 0 0-1.1-1.5 1.65 1.65 0 0 0-1.82.33l-.06.06-2-2 .06-.06A1.65 1.65 0 0 0 7.4 15a1.65 1.65 0 0 0-1.5-1.1H5v-2.8h.9A1.65 1.65 0 0 0 7.4 10a1.65 1.65 0 0 0-.33-1.82L7 8.12l2-2 .06.06A1.65 1.65 0 0 0 10.9 6.5 1.65 1.65 0 0 0 12 5V4h2.8v1a1.65 1.65 0 0 0 1.1 1.5 1.65 1.65 0 0 0 1.82-.33l.06-.06 2 2-.06.06A1.65 1.65 0 0 0 19.4 10a1.65 1.65 0 0 0 1.5 1.1h.1v2.8h-.1a1.65 1.65 0 0 0-1.5 1.1Z"/></svg></button></div></header><main id="app"></main><footer>Made with love · My Recipes</footer><script>
+</style><style id="servings-people-ui">.servings-adjust{display:flex;align-items:flex-start;flex-direction:column;gap:13px;margin:14px 0 8px;padding:16px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--paper) 90%,var(--accent) 10%)}.servings-base-label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink)}.servings-base-label input{width:75px!important;min-width:75px!important;padding:8px!important;text-align:center;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink)}.servings-target{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.servings-target>span:first-child{font-weight:700;margin-right:4px}.servings-target input{width:65px!important;min-width:65px!important;text-align:center;padding:8px 4px!important;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font-weight:700;font-size:17px}.servings-target button{flex:none}.serving-note{margin:0 0 16px;line-height:1.5}@media(max-width:700px){.servings-adjust{padding:13px}.servings-target{gap:7px}}</style></head><body><header><strong>✿ my recipes</strong><div class="header-right"><small>YOUR PERSONAL COOKBOOK</small><button type="button" id="top-settings" aria-label="Open settings" title="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-2 2-.06-.06A1.65 1.65 0 0 0 15.9 18.5a1.65 1.65 0 0 0-1.1 1.5V21h-2.8v-1a1.65 1.65 0 0 0-1.1-1.5 1.65 1.65 0 0 0-1.82.33l-.06.06-2-2 .06-.06A1.65 1.65 0 0 0 7.4 15a1.65 1.65 0 0 0-1.5-1.1H5v-2.8h.9A1.65 1.65 0 0 0 7.4 10a1.65 1.65 0 0 0-.33-1.82L7 8.12l2-2 .06.06A1.65 1.65 0 0 0 10.9 6.5 1.65 1.65 0 0 0 12 5V4h2.8v1a1.65 1.65 0 0 0 1.1 1.5 1.65 1.65 0 0 0 1.82-.33l.06-.06 2 2-.06.06A1.65 1.65 0 0 0 19.4 10a1.65 1.65 0 0 0 1.5 1.1h.1v2.8h-.1a1.65 1.65 0 0 0-1.5 1.1Z"/></svg></button></div></header><main id="app"></main><footer>Made with love · My Recipes</footer><script>
 const KEY='my-recipes-v1',cats=['Breakfast','Lunch','Dinner','Desserts','Snacks','Drinks','Other'];let recipes=[];try{recipes=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(recipes))recipes=[]}catch{}let page='home',current=null,search='',cat='All',favs=false;const app=document.getElementById('app'),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function readDraft(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}}
 function saveRecipeDraft(){if(page!=='edit'||!current)return;try{localStorage.setItem('my-recipes-edit-draft',JSON.stringify(current))}catch{}}
 function clearRecipeDraft(){try{localStorage.removeItem('my-recipes-edit-draft')}catch{}}
@@ -266,25 +266,39 @@ function enhanceDetail(){
      });
    }
  }
- const count=Number(String(current.servings||'').replace(',','.'));
- if(ingredients&&Number.isFinite(count)&&count>0&&count<1000&&!needsOriginalLayout(current)){
+ const parsedCount=parseInt(String(current.servings||'').trim(),10);
+ const originalCount=Number.isFinite(parsedCount)&&parsedCount>=1&&parsedCount<=100?parsedCount:null;
+ if(ingredients&&!needsOriginalLayout(current)){
    const holder=ingredients.nextElementSibling;
    if(holder){
-     if(!currentServings||currentServings.id!==id)currentServings={id,count};
+     if(!currentServings||currentServings.id!==id)currentServings={id,count:originalCount||1};
      const row=document.createElement('div');row.className='servings-adjust';
-     row.innerHTML='<span>Servings</span><button type="button" aria-label="Fewer servings">−</button><strong>'+currentServings.count+'</strong><button type="button" aria-label="More servings">+</button>';
+     row.innerHTML='<label class="servings-base-label">Original recipe for <input id="servings-original" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="e.g. 4" aria-label="Original number of people" value="'+(originalCount||'')+'"> people</label><div class="servings-target"><span>Cook for</span><button type="button" id="servings-minus" aria-label="One fewer person">−</button><input id="servings-target" type="number" inputmode="numeric" min="1" max="100" step="1" aria-label="Number of people" value="'+currentServings.count+'"><button type="button" id="servings-plus" aria-label="One more person">+</button><span>people</span></div>';
      ingredients.after(row);
+     const note=document.createElement('small');note.className='serving-note';row.after(note);
+     const originalInput=row.querySelector('#servings-original');
+     const targetInput=row.querySelector('#servings-target');
      const apply=()=>{
-       const ratio=currentServings.count/count;
+       const base=Number(originalInput.value);
+       const valid=Number.isInteger(base)&&base>=1&&base<=100;
+       const target=Number(targetInput.value);
+       if(!Number.isInteger(target)||target<1||target>100)return;
+       currentServings.count=target;
+       const ratio=valid?target/base:1;
        const lines=asLines(current.ingredients);
        holder.querySelectorAll('.checkline span').forEach((el,i)=>{el.textContent=scaledLine(lines[i]||'',ratio)});
-       row.querySelector('strong').textContent=currentServings.count;
+       note.textContent=valid?'Recognized quantities are adjusted for '+target+' '+(target===1?'person':'people')+'. Check amounts before cooking.':'Enter how many people the original recipe serves to adjust ingredient quantities.';
      };
-     const buttons=row.querySelectorAll('button');
-     buttons[0].onclick=()=>{currentServings.count=Math.max(1,currentServings.count-1);apply()};
-     buttons[1].onclick=()=>{currentServings.count=Math.min(100,currentServings.count+1);apply()};
+     originalInput.onchange=()=>{
+       const value=Number(originalInput.value);
+       if(!Number.isInteger(value)||value<1||value>100){originalInput.value='';current.servings='';}
+       else {current.servings=String(value);recipes=recipes.map(r=>r.id===id?{...r,servings:String(value)}:r);persist();if(!currentServings.userChanged){currentServings.count=value;targetInput.value=value}}
+       apply();
+     };
+     targetInput.oninput=()=>{currentServings.userChanged=true;apply()};
+     row.querySelector('#servings-minus').onclick=()=>{targetInput.value=String(Math.max(1,(Number(targetInput.value)||1)-1));currentServings.userChanged=true;apply()};
+     row.querySelector('#servings-plus').onclick=()=>{targetInput.value=String(Math.min(100,(Number(targetInput.value)||0)+1));currentServings.userChanged=true;apply()};
      apply();
-     const note=document.createElement('small');note.className='serving-note';note.textContent='Only recognized quantities are adjusted. Check amounts before cooking.';row.after(note);
    }
  }
  const cooking=panel.querySelector('.cookbar');
