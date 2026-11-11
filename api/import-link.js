@@ -23,6 +23,8 @@ if(captions.length)return captions.sort((x,y)=>y.length-x.length)[0]
 return ''
 }
 function findRecipe(value){let found=null;function walk(x){if(!x||typeof x!=='object'||found)return;if(Array.isArray(x)){x.forEach(walk);return}let types=[].concat(x['@type']||[]);if(types.includes('Recipe')){found=x;return}if(x['@graph'])walk(x['@graph'])}walk(value);return found}
+function recipeImage(value){if(Array.isArray(value))return value.map(recipeImage).find(Boolean)||'';if(value&&typeof value==='object')return recipeImage(value.url||value.contentUrl||value.thumbnailUrl||'');return typeof value==='string'?value:''}
+function safeImage(raw,base){try{const u=new URL(raw,base);if(u.protocol!=='https:'||u.username||u.password||!u.hostname.includes('.')||u.hostname==='localhost'||u.hostname.endsWith('.local')||u.hostname.endsWith('.internal')||/^(127|10|0|192\\.168|169\\.254|172\\.(1[6-9]|2[0-9]|3[01]))\\./.test(u.hostname))return '';return u.href}catch{return ''}}
 function meta(html,name){const tags=html.match(/<meta\s[^>]*>/gi)||[];for(const tag of tags){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/g))attrs[m[1].toLowerCase()]=m[3];if(attrs.property===name||attrs.name===name)return attrs.content||''}return ''}
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');
@@ -55,6 +57,6 @@ const html=(await response.text()).slice(0,LIMIT);let recipe=null;
 for(const m of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{recipe=findRecipe(JSON.parse(m[1]));if(recipe)break}catch{}}
 let caption=(target.hostname==='www.tiktok.com'||target.hostname==='tiktok.com')?findTikTokCaption(html):'';let steps=recipe?.recipeInstructions||[];if(Array.isArray(steps))steps=steps.map(x=>typeof x==='string'?x:x.text||'').join('\n');
 if((target.hostname==='www.tiktok.com'||target.hostname==='tiktok.com')&&!caption){try{const embed=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(target.href),{signal:AbortSignal.timeout(5000),headers:{'Accept':'application/json'}});if(embed.ok){const data=await embed.json();if(typeof data.title==='string'&&data.title.length>25)caption=data.title}}catch{}}
-return res.status(200).json({title:recipe?.name||meta(html,'og:title')||'',ingredients:Array.isArray(recipe?.recipeIngredient)?recipe.recipeIngredient.join('\n'):'',instructions:recipe?String(steps):decodeEntities(caption||meta(html,'og:description')||meta(html,'description')||''),source:target.href,method:recipe?'structured-recipe':caption?'full-caption':'public-metadata',videoAnalyzed:false});
+const image=safeImage(recipeImage(recipe?.image)||meta(html,'og:image')||meta(html,'twitter:image')||'',target.href);return res.status(200).json({image,title:recipe?.name||meta(html,'og:title')||'',ingredients:Array.isArray(recipe?.recipeIngredient)?recipe.recipeIngredient.join('\n'):'',instructions:recipe?String(steps):decodeEntities(caption||meta(html,'og:description')||meta(html,'description')||''),source:target.href,method:recipe?'structured-recipe':caption?'full-caption':'public-metadata',videoAnalyzed:false});
 }catch(e){return res.status(422).json({error:e.message||'Could not access this link'})}
 }
