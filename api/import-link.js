@@ -32,13 +32,29 @@ const link=req.body?.url;if(typeof link!=='string'||link.length>2000)throw Error
 const u=new URL(link);if(u.protocol!=='https:')throw Error('Only HTTPS links are supported');
 const host=u.hostname.toLowerCase();
 if(!/^[a-z0-9.-]+$/.test(host)||!host.includes('.')||host==='localhost'||host.endsWith('.local')||host.endsWith('.internal')||/^(127|10|0|192\.168|169\.254|172\.(1[6-9]|2[0-9]|3[01]))\./.test(host))throw Error('Unsupported host');
-const response=await fetch(u.href,{headers:{'User-Agent':'Mozilla/5.0 MyRecipes/1.0','Accept':'text/html'},signal:AbortSignal.timeout(8000),redirect:'error'});
+let target=u;
+const isShortTikTok=['vm.tiktok.com','vt.tiktok.com'].includes(host);
+if(isShortTikTok){
+let resolved=false;
+for(let i=0;i<5;i++){
+const r=await fetch(target.href,{method:'GET',headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html'},signal:AbortSignal.timeout(6500),redirect:'manual'});
+if([301,302,303,307,308].includes(r.status)){
+const location=r.headers.get('location');if(!location)throw Error('TikTok did not provide a redirect');
+const next=new URL(location,target);if(next.protocol!=='https:'||!['vm.tiktok.com','vt.tiktok.com','www.tiktok.com','tiktok.com','m.tiktok.com'].includes(next.hostname.toLowerCase()))throw Error('TikTok redirect could not be verified');
+target=next;continue
+}
+if(target.hostname==='www.tiktok.com'||target.hostname==='tiktok.com'){resolved=true;break}
+throw Error('TikTok short link could not be expanded');
+}
+if(!resolved&&target.hostname!=='www.tiktok.com'&&target.hostname!=='tiktok.com')throw Error('TikTok short link could not be expanded');
+}
+const response=await fetch(target.href,{headers:{'User-Agent':'Mozilla/5.0 MyRecipes/1.0','Accept':'text/html'},signal:AbortSignal.timeout(8000),redirect:'error'});
 if(!response.ok)throw Error('The website did not allow access (HTTP '+response.status+')');
 if(Number(response.headers.get('content-length')||0)>LIMIT)throw Error('Page too large');
 const html=(await response.text()).slice(0,LIMIT);let recipe=null;
 for(const m of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{recipe=findRecipe(JSON.parse(m[1]));if(recipe)break}catch{}}
-let caption=(host==='www.tiktok.com'||host==='tiktok.com')?findTikTokCaption(html):'';let steps=recipe?.recipeInstructions||[];if(Array.isArray(steps))steps=steps.map(x=>typeof x==='string'?x:x.text||'').join('\n');
-if((host==='www.tiktok.com'||host==='tiktok.com')&&!caption){try{const embed=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.href),{signal:AbortSignal.timeout(5000),headers:{'Accept':'application/json'}});if(embed.ok){const data=await embed.json();if(typeof data.title==='string'&&data.title.length>25)caption=data.title}}catch{}}
-return res.status(200).json({title:recipe?.name||meta(html,'og:title')||'',ingredients:Array.isArray(recipe?.recipeIngredient)?recipe.recipeIngredient.join('\n'):'',instructions:recipe?String(steps):decodeEntities(caption||meta(html,'og:description')||meta(html,'description')||''),source:u.href,method:recipe?'structured-recipe':caption?'full-caption':'public-metadata',videoAnalyzed:false});
+let caption=(target.hostname==='www.tiktok.com'||target.hostname==='tiktok.com')?findTikTokCaption(html):'';let steps=recipe?.recipeInstructions||[];if(Array.isArray(steps))steps=steps.map(x=>typeof x==='string'?x:x.text||'').join('\n');
+if((target.hostname==='www.tiktok.com'||target.hostname==='tiktok.com')&&!caption){try{const embed=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(target.href),{signal:AbortSignal.timeout(5000),headers:{'Accept':'application/json'}});if(embed.ok){const data=await embed.json();if(typeof data.title==='string'&&data.title.length>25)caption=data.title}}catch{}}
+return res.status(200).json({title:recipe?.name||meta(html,'og:title')||'',ingredients:Array.isArray(recipe?.recipeIngredient)?recipe.recipeIngredient.join('\n'):'',instructions:recipe?String(steps):decodeEntities(caption||meta(html,'og:description')||meta(html,'description')||''),source:target.href,method:recipe?'structured-recipe':caption?'full-caption':'public-metadata',videoAnalyzed:false});
 }catch(e){return res.status(422).json({error:e.message||'Could not access this link'})}
 }
