@@ -440,6 +440,13 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 #recipe-shopping-dialog .shop-sheet,#ingredient-picker-dialog .shop-sheet{min-width:0;box-sizing:border-box;overflow-x:hidden}
 
 .shop-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+/* Shopping controls stay visible while only the ingredient list scrolls. */
+#recipe-shopping-dialog .shop-sheet{display:flex;flex-direction:column;overflow:hidden!important;max-height:min(85dvh,850px);padding-bottom:max(16px,env(safe-area-inset-bottom))}
+#recipe-shopping-dialog .shop-head{flex:0 0 auto}
+#recipe-shopping-dialog .shop-sheet>.muted{flex:0 0 auto}
+#recipe-shopping-dialog .shop-items-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#recipe-shopping-dialog .shop-actions{flex:0 0 auto;margin-top:0;padding-top:12px;border-top:1px solid var(--line);background:var(--paper)}
+
 #practical-detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 #focused-steps{margin:16px 0;padding:18px;border:1px solid var(--line);border-radius:15px;background:var(--paper)}
 #focused-steps .focus-text{font-size:clamp(18px,4.5vw,25px);line-height:1.55;white-space:pre-wrap;margin:14px 0}
@@ -476,7 +483,8 @@ function dialog(){
   const x=document.createElement('button');x.type='button';x.textContent='Close';x.onclick=close;
   head.append(title,x);sheet.append(head);
   const intro=document.createElement('p');intro.className='muted';intro.textContent='Tick off what you already have or bought. Saved on this device.';sheet.append(intro);
-  if(!items.length){const empty=document.createElement('p');empty.textContent='Your shopping list is empty.';sheet.append(empty)}
+  const scroll=document.createElement('div');scroll.className='shop-items-scroll';sheet.append(scroll);
+  if(!items.length){const empty=document.createElement('p');empty.textContent='Your shopping list is empty.';scroll.append(empty)}
   items.forEach(item=>{
    const row=document.createElement('div');row.className='shop-entry'+(item.done?' done':'');
    const check=document.createElement('input');check.type='checkbox';check.checked=!!item.done;check.setAttribute('aria-label','Mark '+item.text+' as bought');
@@ -484,7 +492,7 @@ function dialog(){
    const label=document.createElement('span');label.textContent=item.text;
    const del=document.createElement('button');del.type='button';del.textContent='×';del.setAttribute('aria-label','Remove '+item.text);
    del.onclick=()=>{saveShop(getShop().filter(v=>v.id!==item.id));draw()};
-   row.append(check,label,del);sheet.append(row);
+   row.append(check,label,del);scroll.append(row);
   });
   const actions=document.createElement('div');actions.className='shop-actions';
   const add=document.createElement('button');add.textContent='+ Add item';add.onclick=()=>{
