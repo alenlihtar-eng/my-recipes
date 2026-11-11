@@ -12,23 +12,37 @@ const oldHome=home;home=function(){view='recipes';oldHome()};const oldDetail=det
 </script><style id="import-ui">.import-launch{background:#fff9f1;border:1px dashed var(--accent);border-radius:16px;padding:20px;margin:16px 0}.import-launch h3{margin:0 0 8px}.import-launch p{font-size:14px}.import-form{max-width:700px;margin:0 auto}.import-form textarea{min-height:145px}.import-notice{font:13px Arial;background:#f4eee6;padding:12px;border-radius:10px}.import-preview{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px}.import-preview h3{margin-top:0}</style><script id="recipe-import">
 let importDraft=null;
 function parseRecipeText(text,source=''){
-let t=String(text||'').replace(/\r/g,'').trim();
-const ingHeader=/(?:^|\n)\s*(?:potrebno|sastojci|potrebni sastojci|ingredients|you will need|what you need)\s*[:：]\s*/i;
-const stepHeader=/(?:^|\n)\s*(?:način pripreme|nacin pripreme|postupak pripreme|priprema|postupak|instructions|directions|method|preparation|steps)\s*[:：]\s*/i;
-let ingMatch=ingHeader.exec(t),stepMatch=stepHeader.exec(t);
-let titlePart=t.slice(0,Math.min(ingMatch?ingMatch.index:t.length,stepMatch?stepMatch.index:t.length));
-let title=titlePart.split('\n').map(s=>s.trim()).find(s=>s&&!/^#|^@|^https?:/i.test(s))||'Imported recipe';
-let ingredients='',instructions='';
-if(ingMatch){
-let start=ingMatch.index+ingMatch[0].length;
-let end=stepMatch&&stepMatch.index>start?stepMatch.index:t.length;
-let section=t.slice(start,end).trim();
-ingredients=section.replace(/\s+(?=-\s*(?:\d|pola\b|sol\b|so\b|biber\b|papar\b|začin\b))/gi,'\n').split('\n').map(s=>s.replace(/^\s*[-•]\s*/,'').trim()).filter(Boolean).join('\n');
+const raw=String(text||'').replace(/\r/g,'').replace(/\u00a0/g,' ').trim();
+const headingIngredients=/^(?:potrebno(?:\s+je)?|potrebni sastojci|sastojci(?:\s+za\s+.{1,45})?|namirnice|za recept(?:\s+je potrebno)?|ingredients(?:\s+for\s+.{1,45})?|ingredient list|you(?:'|’)ll need|you will need|what you need|what you'll need|you need|for the recipe|shopping list|састојци|потребно(?:\s+је)?|намирнице)\s*[:：\-–]?\s*$/iu;
+const headingSteps=/^(?:način pripreme|nacin pripreme|postupak pripreme|postupak|priprema|pripremanje|upute(?:\s+za pripremu)?|kako pripremiti|kako se pravi|način pripremanja|recept|instructions|directions|method|preparation|how to make(?: it)?|how to prepare|steps|cooking instructions|procedure|начин припреме|припрема|поступак|упутство)\s*[:：\-–]?\s*$/iu;
+const ingPrefix=/^(?:potrebno(?:\s+je)?|potrebni sastojci|sastojci|namirnice|ingredients|you will need|what you need|ingredient list|састојци|потребно)\s*[:：]\s*/iu;
+const stepPrefix=/^(?:način pripreme|nacin pripreme|postupak pripreme|priprema|postupak|upute|kako pripremiti|instructions|directions|method|preparation|how to make|steps|начин припреме|припрема|поступак)\s*[:：]\s*/iu;
+const qty=/^(?:[-•*]\s*)?(?:(?:\d+(?:[.,\/]\d+)?|[½¼¾⅓⅔]|pola|pola\s+\w+|half|one|two|three|jedna?|dvije|dva|једна?|две|два)\b|(?:so|sol|biber|papar|začini|zacini|salt|pepper)\b)/iu;
+const clean=s=>s.replace(/^\s*(?:[-•*]|\d+[.)])\s*/u,'').trim();
+let lines=raw.split('\n').map(x=>x.trim()).filter(Boolean);
+let section='',before=[],ing=[],steps=[],hasIng=false,hasSteps=false;
+for(let line of lines){
+const head=line.replace(/[:：\-–]\s*$/u,'').trim();
+if(headingIngredients.test(head)){section='ing';hasIng=true;continue}
+if(headingSteps.test(head)){section='steps';hasSteps=true;continue}
+let im=line.match(ingPrefix);if(im){section='ing';hasIng=true;line=line.slice(im[0].length).trim();if(!line)continue}
+let sm=line.match(stepPrefix);if(sm){section='steps';hasSteps=true;line=line.slice(sm[0].length).trim();if(!line)continue}
+if(section==='ing'){ing.push(line);continue}
+if(section==='steps'){steps.push(line);continue}
+before.push(line);
 }
-if(stepMatch){instructions=t.slice(stepMatch.index+stepMatch[0].length).replace(/\s*#(?:[\p{L}\p{N}_]+)/gu,'').trim()}
-else if(!ingMatch){instructions=t}
-if(!ingredients&&ingMatch){ingredients=t.slice(ingMatch.index+ingMatch[0].length,stepMatch?stepMatch.index:undefined).trim()}
-return {...blank(),title:title.slice(0,120),ingredients,instructions,source,notes:'Imported from the source caption. Review ingredients and preparation before saving.'}
+if(!hasIng&&!hasSteps){
+let probable=before.filter(x=>qty.test(x));
+if(probable.length>=2){ing=probable;steps=before.filter(x=>!qty.test(x));before=[]}
+else steps=before.slice(1);
+}
+let title=before.find(s=>!/^https?:|^#|^@/iu.test(s))||'Imported recipe';
+if(!hasIng&&!hasSteps&&lines.length)title=lines[0];
+if(!hasIng&&hasSteps){const candidates=before.slice(1).filter(x=>qty.test(x));if(candidates.length>=2){ing=candidates}}
+if(hasIng&&!hasSteps){let split=ing.findIndex((x,i)=>i>0&&/^(?:način pripreme|nacin pripreme|priprema|postupak|instructions|method|directions)\b/iu.test(x));if(split>=0){steps=ing.slice(split+1);ing=ing.slice(0,split)}}
+const ingredientText=ing.join('\n').replace(/(?:^|\s)[-•]\s*(?=(?:\d|[½¼¾⅓⅔]|pola\b|half\b|sol\b|so\b|salt\b))/giu,'\n').split('\n').map(clean).filter(Boolean).join('\n');
+const instructionText=steps.join('\n').replace(/\s*#[\p{L}\p{N}_]+/gu,'').trim();
+return {...blank(),title:title.slice(0,120),ingredients:ingredientText,instructions:instructionText,source,notes:ingredientText?'Extracted from the original caption. Please check quantities and preparation before saving.':'Could not reliably identify ingredients. Review the original caption before saving.'}
 }
 function extractJsonLdRecipe(data,source){let nodes=[];function walk(x){if(!x||typeof x!=='object')return;if(Array.isArray(x)){x.forEach(walk);return}if(x['@type']&&(Array.isArray(x['@type'])?x['@type'].includes('Recipe'):String(x['@type']).toLowerCase()==='recipe'))nodes.push(x);if(x['@graph'])walk(x['@graph'])}walk(data);let r=nodes[0];if(!r)return null;let steps=r.recipeInstructions||[];let instructions=Array.isArray(steps)?steps.map(s=>typeof s==='string'?s:(s.text||s.name||'')).filter(Boolean).join('\n'):typeof steps==='string'?steps:'';return {...blank(),title:r.name||'Imported recipe',ingredients:Array.isArray(r.recipeIngredient)?r.recipeIngredient.join('\n'):'',instructions,source,servings:Array.isArray(r.recipeYield)?r.recipeYield.join(', '):(r.recipeYield||''),notes:'Imported from website structured data. Please review.'}}
 function importScreen(){view='import';page='import';app.innerHTML='<div class="panel import-form"><p class="tag">SAVE RECIPES FROM ANYWHERE</p><h1>Import a Recipe</h1><p>Paste a recipe, or a link from a recipe website, TikTok, Instagram or YouTube.</p><label class="field">Recipe link (optional)<input id="importUrl" type="url" placeholder="https://..."></label><label class="field">Recipe text or video caption<textarea id="importText" placeholder="Paste the caption, ingredients or full recipe here..."></textarea></label><p class="import-notice">Websites with Recipe structured data may import automatically. Social media links usually do not expose captions or video speech to this web app; paste the caption if available. We never invent missing ingredients.</p><div class="actions"><button class="primary" id="analyze">Prepare recipe</button><button id="importBack">Cancel</button></div><div id="importResult"></div></div>';document.getElementById('importBack').onclick=()=>{view='recipes';home()};document.getElementById('analyze').onclick=async()=>{let url=document.getElementById('importUrl').value.trim(),text=document.getElementById('importText').value.trim(),out=document.getElementById('importResult');if(!url&&!text){alert('Paste a link or recipe text.');return}if(url){try{let u=new URL(url);if(!['http:','https:'].includes(u.protocol))throw Error('Invalid link')}catch{alert('Please enter a valid website link.');return}}let parsed=text?parseRecipeText(text,url):null;if(!parsed&&url){out.textContent='Checking public recipe information from this link...';try{let response=await fetch('/api/import-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:AbortSignal.timeout(12000)});let data=await response.json();if(!response.ok)throw Error(data.error||'Source unavailable');parsed={...blank(),title:data.title||'Imported recipe',ingredients:data.ingredients||'',instructions:data.instructions||'',source:url,notes:data.method==='structured-recipe'?'Imported from website recipe data. Review before saving.':'Only public page metadata was available. The video itself was NOT analyzed; missing ingredients and quantities must not be guessed.'};if(data.method==='full-caption'&&parsed.instructions){let extracted=parseRecipeText(parsed.instructions,url);if(extracted.ingredients){parsed.title=extracted.title||parsed.title;parsed.ingredients=extracted.ingredients;parsed.instructions=extracted.instructions;parsed.notes='Extracted from the TikTok video caption. Check before saving.'}else{parsed.notes='Full TikTok caption retrieved, but ingredients were not clearly labeled. Review and organize the text before saving.'}}if(data.method==='public-metadata'&&!parsed.ingredients){out.textContent='TikTok did not provide the full recipe caption to My Recipes. Only page metadata was available, so no recipe was imported. Try a different public link.';return}if(data.method==='public-metadata'){let warning=document.createElement('p');warning.className='import-notice';warning.textContent='Only public page metadata was available. The full video caption could not be retrieved.';out.replaceChildren(warning)}}catch(err){out.textContent='Automatic link import unavailable: '+err.message+'. This source may block access. No recipe has been invented.';return}if(!parsed.ingredients&&!parsed.instructions){out.textContent='This link does not provide readable recipe details. The video cannot be analyzed automatically from this source.';return}}importDraft=parsed;out.innerHTML='<div class="import-preview"><h3>Review before saving</h3><p><strong>'+esc(parsed.title)+'</strong></p><p class="muted">Ingredients: '+(parsed.ingredients?parsed.ingredients.split('\n').length+' lines':'not found')+' · Instructions: '+(parsed.instructions?'found':'not found')+'</p><p class="muted">You can edit every field before saving.</p><button class="primary" id="review">Review & edit recipe</button></div>';document.getElementById('review').onclick=()=>{current=importDraft;page='edit';render()}};nav()}
