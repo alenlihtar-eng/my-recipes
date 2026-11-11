@@ -37,7 +37,8 @@ if(!response.ok)throw Error('The website did not allow access (HTTP '+response.s
 if(Number(response.headers.get('content-length')||0)>LIMIT)throw Error('Page too large');
 const html=(await response.text()).slice(0,LIMIT);let recipe=null;
 for(const m of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{recipe=findRecipe(JSON.parse(m[1]));if(recipe)break}catch{}}
-let caption=/^(www\\.)?tiktok\\.com$/.test(host)?findTikTokCaption(html):'';let steps=recipe?.recipeInstructions||[];if(Array.isArray(steps))steps=steps.map(x=>typeof x==='string'?x:x.text||'').join('\n');
+let caption=(host==='www.tiktok.com'||host==='tiktok.com')?findTikTokCaption(html):'';let steps=recipe?.recipeInstructions||[];if(Array.isArray(steps))steps=steps.map(x=>typeof x==='string'?x:x.text||'').join('\n');
+if((host==='www.tiktok.com'||host==='tiktok.com')&&!caption){try{const embed=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.href),{signal:AbortSignal.timeout(5000),headers:{'Accept':'application/json'}});if(embed.ok){const data=await embed.json();if(typeof data.title==='string'&&data.title.length>25)caption=data.title}}catch{}}
 return res.status(200).json({title:recipe?.name||meta(html,'og:title')||'',ingredients:Array.isArray(recipe?.recipeIngredient)?recipe.recipeIngredient.join('\n'):'',instructions:recipe?String(steps):decodeEntities(caption||meta(html,'og:description')||meta(html,'description')||''),source:u.href,method:recipe?'structured-recipe':caption?'full-caption':'public-metadata',videoAnalyzed:false});
 }catch(e){return res.status(422).json({error:e.message||'Could not access this link'})}
 }
