@@ -658,4 +658,175 @@ const observer=new MutationObserver(()=>{observer.disconnect();try{enhance()}fin
 observer.observe(app,{childList:true,subtree:true});enhance();
 })();
 </script>
+
+<style id="cookbook-growth-upgrades-style">
+#recipe-share-view{max-width:760px;margin:24px auto;padding:24px;border-radius:22px;border:1px solid var(--line);background:var(--paper)}
+#recipe-share-view h1{margin-bottom:8px}#recipe-share-view .share-copy{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+#recipe-share-view .share-photo{width:100%;max-height:310px;object-fit:cover;border-radius:15px}
+#recipe-share-view .share-actions{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}
+#recipe-share-view .share-actions button{flex:1;min-width:150px}
+#recipe-growth-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#recipe-growth-actions button{flex:1 1 135px}
+#cookbook-timer{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px;border:1px solid var(--line);border-radius:12px;margin-top:12px}
+#cookbook-timer button{padding:9px 12px}
+#cookbook-timer strong{font:700 18px Arial}
+#recipe-organize-preview{white-space:pre-wrap;border:1px solid var(--line);padding:12px;border-radius:12px;max-height:190px;overflow:auto}
+</style>
+<script id="cookbook-growth-upgrades">
+(function(){
+'use strict';
+const key='my-recipes-growth-backup-reminder';
+const makeButton=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;return b};
+const safeString=x=>String(x||'');
+const b64=bytes=>{let s='';for(const v of bytes)s+=String.fromCharCode(v);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const unb64=s=>{const raw=atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4));return Uint8Array.from(raw,c=>c.charCodeAt(0))};
+async function encodeShare(r){
+ const photo=(r.photos||[]).find(p=>/^https:\/\//i.test(p))||'';
+ const data={v:1,t:r.title,c:r.category,i:r.ingredients,s:r.instructions,o:r.originalText,n:r.notes,tm:r.time,sv:r.servings,p:photo};
+ const bytes=new TextEncoder().encode(JSON.stringify(data));
+ if(bytes.length>25000)throw Error('This recipe is too long to share as a link. Try shortening the original imported caption.');
+ let packed=bytes,mode='u';
+ if(typeof CompressionStream==='function'){
+  const stream=new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  packed=new Uint8Array(await new Response(stream).arrayBuffer());mode='g';
+ }
+ const payload=mode+b64(packed);
+ if(payload.length>11000)throw Error('The recipe is too long for a reliable share link. Shorten the original caption or share a shorter recipe.');
+ return location.origin+location.pathname+'?shared='+payload;
+}
+async function decodeShare(raw){
+ if(!/^[gu][A-Za-z0-9_-]{1,11000}$/.test(raw))throw Error('Invalid recipe link');
+ const mode=raw[0],bytes=unb64(raw.slice(1));
+ let data=bytes;
+ if(mode==='g'){if(typeof DecompressionStream!=='function')throw Error('This browser cannot open compressed recipe links');data=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())}
+ if(data.length>30000)throw Error('Recipe too large');
+ const r=JSON.parse(new TextDecoder().decode(data));
+ if(r.v!==1||typeof r.t!=='string'||!r.t.trim())throw Error('Invalid recipe');
+ return r;
+}
+function sharedView(r){
+ const wrap=document.createElement('section');wrap.id='recipe-share-view';
+ const eyebrow=document.createElement('p');eyebrow.className='tag';eyebrow.textContent='SHARED WITH MY RECIPES';
+ const title=document.createElement('h1');title.textContent=r.t;
+ wrap.append(eyebrow,title);
+ if(r.p&&/^https:\/\//i.test(r.p)){const img=document.createElement('img');img.className='share-photo';img.src=r.p;img.alt=r.t;wrap.append(img)}
+ for(const [label,content] of [['Ingredients',r.i],['Instructions',r.s],['Original recipe',(!r.i||!r.s)?r.o:'']]){
+  if(!content)continue;const h=document.createElement('h2');h.textContent=label;const p=document.createElement('div');p.className='share-copy';p.textContent=content;wrap.append(h,p);
+ }
+ const note=document.createElement('p');note.textContent='Save this recipe to your own cookbook. My Recipes keeps your recipes on this device.';wrap.append(note);
+ const actions=document.createElement('div');actions.className='share-actions';
+ const save=makeButton('Save to My Recipes',()=>{
+  if(!confirm('Save this shared recipe to your cookbook on this device?'))return;
+  const item={...blank(),title:r.t,category:r.c||'Dinner',ingredients:r.i||'',instructions:r.s||'',originalText:r.o||'',notes:r.n||'',time:r.tm||'',servings:r.sv||'',photos:r.p?[r.p]:[]};
+  recipes=[item,...recipes];persist();history.replaceState({},'',location.pathname);document.getElementById('recipe-share-overlay')?.remove();detail(item.id);
+ });
+ save.className='primary';
+ const get=makeButton('Get My Recipes',()=>{
+  const dest=/iPad|iPhone|iPod/.test(navigator.userAgent)?'ios':'android';
+  alert('My Recipes is not published in the '+(dest==='ios'?'App Store':'Google Play')+' yet. You can use the free web app now and save this recipe.');
+  window.open(location.origin+location.pathname,'_blank','noopener');
+ });
+ actions.append(save,get);wrap.append(actions);
+ const outer=document.createElement('div');outer.id='recipe-share-overlay';outer.style.cssText='position:fixed;inset:0;z-index:999;overflow-y:auto;background:var(--paper);color:var(--ink);padding:12px';outer.append(wrap);
+ const back=makeButton('← Open cookbook',()=>{history.replaceState({},'',location.pathname);outer.remove();home()});wrap.prepend(back);
+ document.body.append(outer);
+}
+async function shareRecipe(r){
+ try{
+  const url=await encodeShare(r);
+  if(navigator.share){try{await navigator.share({title:r.title,text:'A recipe from My Recipes',url});return}catch(e){if(e.name==='AbortError')return}}
+  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);alert('Recipe link copied. Share it with friends!')}
+  else prompt('Copy this recipe link:',url);
+ }catch(e){alert(e.message||'Could not share this recipe.')}
+}
+function duplicateRecipe(r){
+ const copy={...structuredClone(r),id:crypto.randomUUID(),title:r.title+' (copy)',favorite:false,created:Date.now()};
+ recipes=[copy,...recipes];persist();detail(copy.id);
+}
+function organizeRecipe(r){
+ const raw=safeString(r.originalText||r.ingredients).replace(/\r/g,'').trim();
+ if(!raw)return alert('There is no original recipe text to organize.');
+ const lines=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+ const ing=[],steps=[];let section='ingredients';
+ const heading=/^(?:ingredients?|sastojci|zutaten|ingrédients|ingredientes|ingredienti)\s*:?$/iu;
+ const directions=/^(?:instructions?|directions?|method|preparation|priprema|postupak|zubereitung|préparation|preparación|procedimento)\s*:?$/iu;
+ const quantity=/^(?:[-•*]\s*)?(?:\d+(?:[.,/]\d+)?|[¼½¾⅓⅔])\s*(?:[\p{L}])/u;
+ const imperative=/^(?:mix|add|bake|cook|heat|stir|combine|serve|preheat|peci|peći|dodaj|pomiješaj|umiješaj|zagrij|kuhaj|stavi|miješaj|izmiješaj|pripremi)\b/iu;
+ for(const line of lines){
+  if(heading.test(line)){section='ingredients';continue}
+  if(directions.test(line)){section='instructions';continue}
+  if(/^\d{1,2}[.)]\s+\p{L}/u.test(line)||imperative.test(line))section='instructions';
+  if(section==='ingredients'&&quantity.test(line))ing.push(line);
+  else if(section==='instructions')steps.push(line);
+  else if(section==='ingredients'&&ing.length&&line.length<110)ing.push(line);
+  else steps.push(line);
+ }
+ if(!ing.length||!steps.length)return alert('Could not reliably separate ingredients and instructions. Please use Edit & organize to separate them manually; your original text is preserved.');
+ const preview='Ingredients:\n'+ing.join('\n')+'\n\nInstructions:\n'+steps.join('\n');
+ if(!confirm('Review the suggested separation:\n\n'+preview.slice(0,1600)+'\n\nApply it? You can edit everything afterward.'))return;
+ const saved=recipes.find(x=>x.id===r.id);
+ if(!saved)return;
+ saved.ingredients=ing.join('\n');saved.instructions=steps.join('\n');
+ persist();edit(saved.id);
+}
+function backupReminder(){
+ if(!recipes.length)return;
+ let last=0;try{last=Number(localStorage.getItem(key)||0)}catch{}
+ if(Date.now()-last<30*86400000)return;
+ try{localStorage.setItem(key,String(Date.now()))}catch{}
+ const p=document.createElement('p');p.className='muted';p.id='backup-reminder';p.textContent='Keep your recipes safe: export a backup (including photos) to another device or cloud storage.';
+ const btn=makeButton('Export backup',backup);p.append(' ',btn);
+ const toolbar=app.querySelector('.toolbar');toolbar?.after(p);
+}
+function mergeShopping(){
+ const raw=JSON.parse(localStorage.getItem('my-recipes-shopping-v1')||'[]');
+ if(!Array.isArray(raw)||raw.length<2)return alert('Add ingredients from recipes first.');
+ const groups=new Map();let changed=false;
+ const units={g:['g',1],kg:['g',1000],ml:['ml',1],l:['ml',1000],dl:['ml',100],cl:['ml',10]};
+ for(const item of raw){
+  const match=safeString(item.text).trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|ml|dl|cl|l)\b\s*(.+)$/iu);
+  if(!match){groups.set('raw:'+item.id,item);continue}
+  const qty=Number(match[1].replace(',','.')),unit=units[match[2].toLowerCase()],name=match[3].trim();
+  const id=unit[0]+'|'+name.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const existing=groups.get(id);
+  if(existing&&existing.done===item.done){existing.amount+=qty*unit[1];changed=true}
+  else if(existing){groups.set('raw:'+item.id,item)}
+  else groups.set(id,{id:item.id,done:item.done,amount:qty*unit[1],unit:unit[0],name});
+ }
+ if(!changed)return alert('No matching ingredients with compatible units found. Items without reliable quantities are kept separate.');
+ const out=[...groups.values()].map(v=>v.amount!==undefined?{id:v.id,done:v.done,text:(Math.round(v.amount*100)/100)+' '+v.unit+' '+v.name}:v);
+ localStorage.setItem('my-recipes-shopping-v1',JSON.stringify(out));alert('Matching quantities combined. Reopen the shopping list to see the result.');
+}
+function addGrowthButtons(){
+ if(page!=='detail'||!current?.id)return;
+ const panel=app.querySelector('.panel');
+ if(!panel||document.getElementById('recipe-growth-actions'))return;
+ const actions=document.createElement('div');actions.id='recipe-growth-actions';
+ actions.append(makeButton('Share recipe',()=>shareRecipe(current)),makeButton('Duplicate recipe',()=>duplicateRecipe(current)));
+ if(needsOriginalLayout(current))actions.append(makeButton('Organize ingredients & steps',()=>organizeRecipe(current)));
+ panel.querySelector('.actions')?.after(actions);
+}
+function addTimer(){
+ if(page!=='detail'||!current?.id||!document.getElementById('focused-steps')||document.getElementById('cookbook-timer'))return;
+ const focus=document.getElementById('focused-steps');
+ const timer=document.createElement('div');timer.id='cookbook-timer';
+ const label=document.createElement('span');label.textContent='Cooking timer';
+ const display=document.createElement('strong');display.textContent='00:00';
+ const start=makeButton('Start',()=>{if(endTime){endTime=0;start.textContent='Start';return}let mins=Number(prompt('Timer duration in minutes',String(detected||10)));if(!Number.isFinite(mins)||mins<=0||mins>360)return;endTime=Date.now()+mins*60000;start.textContent='Pause';tick()});
+ const reset=makeButton('Reset',()=>{endTime=0;display.textContent='00:00';start.textContent='Start'});
+ let endTime=0,detected=0;
+ const detect=()=>{const text=focus.querySelector('.focus-text')?.textContent||'';const m=text.match(/(\d{1,3})\s*(?:minutes?|mins?|minuta|minuten|minuti)\b/iu);detected=m?Number(m[1]):0;if(!endTime&&detected)display.textContent=detected+':00'};
+ const tick=()=>{if(!endTime)return;const seconds=Math.max(0,Math.ceil((endTime-Date.now())/1000));display.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');if(!seconds){endTime=0;start.textContent='Start';alert('Cooking timer finished!')}};
+ timer.append(label,display,start,reset);focus.append(timer);detect();
+ const ob=new MutationObserver(detect);ob.observe(focus.querySelector('.focus-text'),{childList:true,characterData:true,subtree:true});
+ const interval=setInterval(()=>{if(!timer.isConnected){clearInterval(interval);ob.disconnect();return}tick()},1000);
+}
+function enhanceGrowth(){addGrowthButtons();addTimer();if(page==='home')backupReminder();if(page==='home'&&!document.getElementById('merge-shopping')){const b=makeButton('Combine matching ingredients',mergeShopping);b.id='merge-shopping';b.style.cssText='font-size:12px';const shop=document.getElementById('open-shopping-home');shop?.after(b)}}
+const observer=new MutationObserver(()=>{observer.disconnect();try{enhanceGrowth()}finally{observer.observe(app,{childList:true,subtree:true})}});
+observer.observe(app,{childList:true,subtree:true});
+enhanceGrowth();
+const raw=new URLSearchParams(location.search).get('shared');
+if(raw){decodeShare(raw).then(sharedView).catch(e=>alert('Unable to open shared recipe: '+e.message))}
+})();
+</script>
 </body></html>
