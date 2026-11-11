@@ -270,6 +270,15 @@ function scaledCaption(text,ratio){
  if(isHeader)return text;
  return String(text).replace(/(^|[^\p{L}\p{N}])(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)(\s*)([\p{L}\p{M}]+)(?=$|[^\p{L}\p{M}])/giu,(whole,before,num,space,word,offset,full)=>{
    const u=word.toLowerCase();
+   // Preserve conditional alternatives about cookware or pan size, but only
+   // within the current sentence. Do not freeze ingredients elsewhere in caption.
+   const tokenPosition=offset+before.length;
+   const sentenceStart=Math.max(full.lastIndexOf('.',tokenPosition-1),full.lastIndexOf('!',tokenPosition-1),full.lastIndexOf('?',tokenPosition-1),full.lastIndexOf('。',tokenPosition-1),full.lastIndexOf('\\n',tokenPosition-1))+1;
+   const precedingClause=full.slice(sentenceStart,tokenPosition);
+   const cookware=/tepsij\p{L}*|pleh\p{L}*|kalup\p{L}*|protvan\p{L}*|pekač\p{L}*|lim\s+za\s+pečenje|baking\s+(?:tray|pan|tin|dish)|cake\s+(?:pan|tin|mold)|springform\p{L}*|backform\p{L}*|backblech\p{L}*|moule\p{L}*|molde\p{L}*|bandeja\p{L}*|teglia\p{L}*|stampo\p{L}*|противень|烤盘|模具/iu;
+   const condition=/(?:^|[\\s,;:(])(?:ako|ukoliko|kad|kada|if|when|whenever|in\s+case|si|wenn|falls|se|qualora|jeśli|jesli|pokud|если|dacă|daca|eğer|eger|若|如果)(?:[\\s,;:]|$)/iu;
+   const sizeContext=/već\p{L}*|vec\p{L}*|manj\p{L}*|larg\p{L}*|bigg\p{L}*|small\p{L}*|wide\p{L}*|deep\p{L}*|größ\p{L}*|gross\p{L}*|klein\p{L}*|grand\p{L}*|petit\p{L}*|mayor|menor|grande|pequeñ\p{L}*|większ\p{L}*|mniejsz\p{L}*|больш\p{L}*|малень\p{L}*|大|小/iu;
+   if(condition.test(precedingClause)&&cookware.test(precedingClause)&&sizeContext.test(precedingClause))return whole;
    // Protect dimensions locally, not the whole caption: ingredient quantities
    // may appear in the same paragraph as baking tray sizes.
    const tokenStart=offset+before.length;
