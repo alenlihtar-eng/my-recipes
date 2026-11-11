@@ -1,6 +1,27 @@
 const LIMIT=1800000;
 function decodeEntities(s){return String(s||'').replace(/&quot;/g,'"').replace(/&#39;|&#x27;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
-function findTikTokCaption(html){for(const id of ['__UNIVERSAL_DATA_FOR_REHYDRATION__','SIGI_STATE']){let m=html.match(new RegExp('<script[^>]*id=["\\\']'+id+'["\\\'][^>]*>([\\s\\S]*?)<\\/script>','i'));if(!m)continue;try{let data=JSON.parse(m[1]),captions=[];function visit(v,depth){if(depth>22||!v||typeof v!=='object')return;if(Array.isArray(v)){for(const x of v.slice(0,100))visit(x,depth+1);return}if(typeof v.desc==='string'&&v.desc.length>15&&(/video|item|detail|aweme|itemStruct/i.test(JSON.stringify(Object.keys(v))))captions.push(v.desc);for(const [k,x] of Object.entries(v)){if(['itemInfo','itemStruct','itemModule','ItemModule','__DEFAULT_SCOPE__','webapp.video-detail','video','itemList','items','data'].includes(k)||depth<3)visit(x,depth+1)}}visit(data,0);if(captions.length)return captions.sort((a,b)=>b.length-a.length)[0]}catch{}}return ''}
+function findTikTokCaption(html){
+const scripts=html.match(/<script[^>]*>[\s\S]*?<\/script>/gi)||[];
+for(const script of scripts){
+if(!script.includes('__UNIVERSAL_DATA_FOR_REHYDRATION__')&&!script.includes('SIGI_STATE'))continue;
+const start=script.indexOf('>'),end=script.lastIndexOf('</script>');
+if(start<0||end<0)continue;
+try{
+const data=JSON.parse(script.slice(start+1,end)),captions=[];
+function visit(v,depth){
+if(depth>20||!v||typeof v!=='object')return;
+if(Array.isArray(v)){for(const x of v.slice(0,100))visit(x,depth+1);return}
+if(typeof v.desc==='string'&&v.desc.length>15)captions.push(v.desc);
+for(const [key,value] of Object.entries(v)){
+if(depth<4||['itemInfo','itemStruct','itemModule','ItemModule','__DEFAULT_SCOPE__','webapp.video-detail','video','itemList','items','data'].includes(key))visit(value,depth+1)
+}
+}
+visit(data,0);
+if(captions.length)return captions.sort((x,y)=>y.length-x.length)[0]
+}catch{}
+}
+return ''
+}
 function findRecipe(value){let found=null;function walk(x){if(!x||typeof x!=='object'||found)return;if(Array.isArray(x)){x.forEach(walk);return}let types=[].concat(x['@type']||[]);if(types.includes('Recipe')){found=x;return}if(x['@graph'])walk(x['@graph'])}walk(value);return found}
 function meta(html,name){const tags=html.match(/<meta\s[^>]*>/gi)||[];for(const tag of tags){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/g))attrs[m[1].toLowerCase()]=m[3];if(attrs.property===name||attrs.name===name)return attrs.content||''}return ''}
 export default async function handler(req,res){
