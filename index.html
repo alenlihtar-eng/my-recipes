@@ -422,4 +422,151 @@ observer.observe(app,{childList:true,subtree:true});
 enhance();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&page==='detail'&&cook&&navigator.wakeLock&&!lock)navigator.wakeLock.request('screen').then(x=>lock=x).catch(()=>{});if(document.visibilityState==='hidden'&&lock){lock.release().catch(()=>{});lock=null}});
 })();
-</script></body></html>
+</script>
+<style id="cookbook-practical-2026">
+#recipe-shopping-dialog{position:fixed;inset:0;z-index:300;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px}
+#recipe-shopping-dialog .shop-sheet{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(100%,520px);max-height:85dvh;overflow:auto;box-shadow:0 15px 60px #0003}
+.shop-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.shop-head h2{margin:0}
+.shop-entry{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.shop-entry input{margin-top:5px;accent-color:var(--accent)}.shop-entry span{flex:1;overflow-wrap:anywhere}
+.shop-entry.done span{text-decoration:line-through;opacity:.6}
+.shop-entry button{padding:3px 8px}
+.shop-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+#practical-detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#focused-steps{margin:16px 0;padding:18px;border:1px solid var(--line);border-radius:15px;background:var(--paper)}
+#focused-steps .focus-text{font-size:clamp(18px,4.5vw,25px);line-height:1.55;white-space:pre-wrap;margin:14px 0}
+#focused-steps .focus-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#focused-steps .focus-nav button{min-width:80px}
+.focus-hide-steps .step{display:none}
+#photo-tools{margin-top:10px}
+#photo-tools .photo-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+#photo-tools .photo-item img{width:76px;height:76px;object-fit:cover;border-radius:9px}
+#photo-tools .photo-item .photo-controls{display:flex;flex-wrap:wrap;gap:5px}
+#photo-tools .photo-item button{padding:7px 10px}
+</style>
+<script id="cookbook-practical-features">
+(function(){
+'use strict';
+const SHOP_KEY='my-recipes-shopping-v1';
+const getShop=()=>{try{const v=JSON.parse(localStorage.getItem(SHOP_KEY)||'[]');return Array.isArray(v)?v:[]}catch{return []}};
+const saveShop=x=>{try{localStorage.setItem(SHOP_KEY,JSON.stringify(x))}catch{alert('Shopping list could not be saved on this device.')}};
+const uid=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();
+const escText=s=>String(s??'');
+function dialog(){
+ document.getElementById('recipe-shopping-dialog')?.remove();
+ const overlay=document.createElement('div');overlay.id='recipe-shopping-dialog';
+ const sheet=document.createElement('div');sheet.className='shop-sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');sheet.setAttribute('aria-label','Shopping list');
+ overlay.append(sheet);document.body.append(overlay);
+ const close=()=>overlay.remove();
+ overlay.onclick=e=>{if(e.target===overlay)close()};
+ const key=e=>{if(e.key==='Escape'){close();document.removeEventListener('keydown',key)}};document.addEventListener('keydown',key);
+ const draw=()=>{
+  const items=getShop();
+  sheet.replaceChildren();
+  const head=document.createElement('div');head.className='shop-head';
+  const title=document.createElement('h2');title.textContent='Shopping list';
+  const x=document.createElement('button');x.type='button';x.textContent='Close';x.onclick=close;
+  head.append(title,x);sheet.append(head);
+  const intro=document.createElement('p');intro.className='muted';intro.textContent='Tick off what you already have or bought. Saved on this device.';sheet.append(intro);
+  if(!items.length){const empty=document.createElement('p');empty.textContent='Your shopping list is empty.';sheet.append(empty)}
+  items.forEach(item=>{
+   const row=document.createElement('div');row.className='shop-entry'+(item.done?' done':'');
+   const check=document.createElement('input');check.type='checkbox';check.checked=!!item.done;check.setAttribute('aria-label','Mark '+item.text+' as bought');
+   check.onchange=()=>{saveShop(getShop().map(v=>v.id===item.id?{...v,done:check.checked}:v));draw()};
+   const label=document.createElement('span');label.textContent=item.text;
+   const del=document.createElement('button');del.type='button';del.textContent='×';del.setAttribute('aria-label','Remove '+item.text);
+   del.onclick=()=>{saveShop(getShop().filter(v=>v.id!==item.id));draw()};
+   row.append(check,label,del);sheet.append(row);
+  });
+  const actions=document.createElement('div');actions.className='shop-actions';
+  const add=document.createElement('button');add.textContent='+ Add item';add.onclick=()=>{
+   const value=prompt('Item to buy');if(value?.trim()){saveShop([...getShop(),{id:uid(),text:value.trim(),done:false}]);draw()}
+  };
+  const copy=document.createElement('button');copy.textContent='Copy list';copy.disabled=!items.length;copy.onclick=()=>{
+   const txt=items.map(v=>(v.done?'☑ ':'☐ ')+v.text).join('\n');
+   if(navigator.clipboard?.writeText)navigator.clipboard.writeText(txt).then(()=>alert('Shopping list copied.')).catch(()=>prompt('Copy shopping list:',txt));
+   else prompt('Copy shopping list:',txt);
+  };
+  const clear=document.createElement('button');clear.textContent='Clear checked';clear.disabled=!items.some(v=>v.done);clear.onclick=()=>{saveShop(getShop().filter(v=>!v.done));draw()};
+  actions.append(add,copy,clear);sheet.append(actions);
+ };
+ draw();
+}
+function ingredientLines(){
+ const original=typeof needsOriginalLayout==='function'&&needsOriginalLayout(current);
+ if(original)return null;
+ const holder=document.querySelector('#recipe-body .checkline');
+ const visible=holder?[...document.querySelectorAll('#recipe-body .checkline span')].map(el=>el.textContent.trim()):[];
+ return (visible.length?visible:String(current?.ingredients||'').split(/\r?\n/).map(s=>s.trim())).filter(Boolean);
+}
+function addIngredients(){
+ const lines=ingredientLines();
+ if(!lines){alert('This imported recipe has not been separated into ingredients yet. Open Edit & organize to enter ingredients first.');return}
+ const existing=getShop();const added=lines.map(text=>({id:uid(),text,done:false}));
+ saveShop([...existing,...added]);dialog();
+}
+function enhanceDetail(){
+ if(page!=='detail'||!current?.id)return;
+ const panel=app.querySelector('.panel');if(!panel||panel.dataset.practicalEnhanced)return;
+ panel.dataset.practicalEnhanced='1';
+ const buttons=document.createElement('div');buttons.id='practical-detail-actions';
+ const shopping=document.createElement('button');shopping.type='button';shopping.textContent='+ Shopping list';shopping.onclick=addIngredients;
+ const open=document.createElement('button');open.type='button';open.textContent='View shopping list';open.onclick=dialog;
+ buttons.append(shopping,open);panel.querySelector('.actions')?.after(buttons);
+ const bar=panel.querySelector('.cookbar');
+ if(bar){
+  const steps=[...panel.querySelectorAll('.step')].map(el=>el.querySelector('span')?.textContent?.trim()||el.textContent.trim()).filter(Boolean);
+  if(steps.length){
+   let index=0;const progressKey='my-recipes-cook-step-'+current.id;
+   try{index=Math.max(0,Math.min(steps.length-1,Number(localStorage.getItem(progressKey))||0))}catch{}
+   const focus=document.createElement('section');focus.id='focused-steps';focus.setAttribute('aria-label','Step-by-step cooking');
+   const count=document.createElement('strong');const instruction=document.createElement('div');instruction.className='focus-text';
+   const nav=document.createElement('div');nav.className='focus-nav';
+   const prev=document.createElement('button');prev.textContent='← Previous';
+   const next=document.createElement('button');next.className='primary';
+   const draw=()=>{count.textContent='Step '+(index+1)+' of '+steps.length;instruction.textContent=steps[index];prev.disabled=index===0;next.textContent=index===steps.length-1?'Finish':'Next →';try{localStorage.setItem(progressKey,String(index))}catch{}};
+   prev.onclick=()=>{index=Math.max(0,index-1);draw()};
+   next.onclick=()=>{if(index===steps.length-1){try{localStorage.removeItem(progressKey)}catch{};const exit=[...panel.querySelectorAll('button')].find(b=>b.textContent.includes('Exit cooking mode'));exit?.click()}else{index++;draw()}};
+   nav.append(prev,next);focus.append(count,instruction,nav);bar.after(focus);panel.classList.add('focus-hide-steps');draw();
+  }else{
+   const info=document.createElement('p');info.textContent='For step-by-step cooking, add preparation steps on separate lines in Edit recipe.';bar.after(info);
+  }
+ }
+}
+function enhanceEdit(){
+ if(page!=='edit'||!current?.photos?.length)return;
+ const previews=document.getElementById('previews');
+ if(!previews||document.getElementById('photo-tools'))return;
+ const tools=document.createElement('div');tools.id='photo-tools';
+ const heading=document.createElement('p');heading.textContent='Photo order · the first photo is the cover';tools.append(heading);
+ current.photos.forEach((src,i)=>{
+  const row=document.createElement('div');row.className='photo-item';
+  const img=document.createElement('img');img.src=src;img.alt='Recipe photo '+(i+1);
+  const label=document.createElement('span');label.textContent=i===0?'Cover photo':'Photo '+(i+1);
+  const controls=document.createElement('div');controls.className='photo-controls';
+  const move=(labelText,target,disabled)=>{
+   const btn=document.createElement('button');btn.type='button';btn.textContent=labelText;btn.disabled=disabled;
+   btn.onclick=()=>{const photos=current.photos;[photos[i],photos[target]]=[photos[target],photos[i]];saveRecipeDraft();render()};
+   controls.append(btn);
+  };
+  move('←',i-1,i===0);move('→',i+1,i===current.photos.length-1);
+  if(i!==0){const cover=document.createElement('button');cover.type='button';cover.textContent='Make cover';cover.onclick=()=>{current.photos.unshift(current.photos.splice(i,1)[0]);saveRecipeDraft();render()};controls.append(cover)}
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';remove.onclick=()=>{current.photos.splice(i,1);saveRecipeDraft();render()};controls.append(remove);
+  row.append(img,label,controls);tools.append(row);
+ });
+ previews.after(tools);
+ // Keep the existing file picker and its upload/compression behavior.
+ previews.style.display='none';
+}
+function enhanceHome(){
+ if(page!=='home'||document.getElementById('open-shopping-home'))return;
+ const toolbar=app.querySelector('.toolbar');
+ if(!toolbar)return;
+ const b=document.createElement('button');b.id='open-shopping-home';b.type='button';b.textContent='Shopping list';b.onclick=dialog;toolbar.append(b);
+}
+function enhance(){enhanceDetail();enhanceEdit();enhanceHome()}
+const observer=new MutationObserver(()=>{observer.disconnect();try{enhance()}finally{observer.observe(app,{childList:true,subtree:true})}});
+observer.observe(app,{childList:true,subtree:true});enhance();
+})();
+</script>
+</body></html>
