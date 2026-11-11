@@ -739,10 +739,6 @@ async function shareRecipe(r){
   else prompt('Copy this recipe link:',url);
  }catch(e){alert(e.message||'Could not share this recipe.')}
 }
-function duplicateRecipe(r){
- const copy={...structuredClone(r),id:crypto.randomUUID(),title:r.title+' (copy)',favorite:false,created:Date.now()};
- recipes=[copy,...recipes];persist();detail(copy.id);
-}
 function organizeRecipe(r){
  const raw=safeString(r.originalText||r.ingredients).replace(/\r/g,'').trim();
  if(!raw)return alert('There is no original recipe text to organize.');
@@ -802,7 +798,7 @@ function addGrowthButtons(){
  const panel=app.querySelector('.panel');
  if(!panel||document.getElementById('recipe-growth-actions'))return;
  const actions=document.createElement('div');actions.id='recipe-growth-actions';
- actions.append(makeButton('Share recipe',()=>shareRecipe(current)),makeButton('Duplicate recipe',()=>duplicateRecipe(current)));
+ actions.append(makeButton('Share recipe',()=>shareRecipe(current)));
  if(needsOriginalLayout(current))actions.append(makeButton('Organize ingredients & steps',()=>organizeRecipe(current)));
  panel.querySelector('.actions')?.after(actions);
 }
