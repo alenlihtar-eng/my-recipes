@@ -242,12 +242,20 @@ function estimateServings(recipe){
 }
 function scaledLine(line,ratio){
  if(ratio===1)return line;
- // Only convert clearly recognizable numeric amounts; never guess quantities in prose.
- return line.replace(/^(\s*)(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)(\s*)(?=(?:kg|g|mg|ml|l|dl|cl|oz|lb|cups?|tbsp|tsp|žlice?|žličice?|kom(?:ada)?|pcs?)(?:\b|\s))/iu,(whole,lead,num,space)=>{
- let n;if(num.includes('/')){const [a,b]=num.split('/').map(Number);n=b?a/b:NaN}else n=Number(num.replace(',','.'));
- if(!Number.isFinite(n))return whole;
- const v=Math.round(n*ratio*100)/100;
- return lead+String(v).replace('.',num.includes(',')?',':'.')+space;
+ // Round by unit: whole grams/ml, sensible fractions for spoons, whole pieces.
+ return line.replace(/^(\s*)(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)(\s*)(kg|mg|ml|dl|cl|g|l|oz|lb|cups?|tbsp|tsp|žlice?|žličice?|kom(?:ada)?|pcs?)(?=\b|\s|$)/iu,(whole,lead,num,space,unit)=>{
+   let n;
+   if(num.includes('/')){const [x,y]=num.split('/').map(Number);n=y?x/y:NaN}
+   else n=Number(num.replace(',','.'));
+   if(!Number.isFinite(n))return whole;
+   const u=unit.toLowerCase();
+   const v=n*ratio;
+   let rounded;
+   if(/^(?:g|mg|ml|cl|kom(?:ada)?|pcs?)$/iu.test(u))rounded=Math.max(v>0?1:0,Math.round(v));
+   else if(/^(?:žlice?|žličice?|tbsp|tsp|cups?)$/iu.test(u))rounded=Math.max(v>0?.25:0,Math.round(v*4)/4);
+   else rounded=Math.round(v*10)/10;
+   const shown=String(rounded).replace('.',num.includes(',')?',':'.');
+   return lead+shown+space+unit;
  });
 }
 function remember(id){
